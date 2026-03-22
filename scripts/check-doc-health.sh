@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# set -euo pipefail は使わない（date コマンドの失敗を手動でハンドリングするため）
 
 FAILED=0
 MAX_LINES=50
@@ -23,10 +23,16 @@ for adr in docs/adr/*.md; do
   [ -f "$adr" ] || continue
   validated=$(grep -i "last-validated:" "$adr" | head -1 | sed 's/.*: *//' | tr -d ' ')
   [ -z "$validated" ] && continue
-  adr_ts=$(date -d "$validated" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$validated" +%s 2>/dev/null || echo 0)
+
+  # macOS (BSD date) と Linux (GNU date) の両方に対応
+  adr_ts=""
+  adr_ts=$(date -j -f "%Y-%m-%d" "$validated" +%s 2>/dev/null) \
+    || adr_ts=$(date -d "$validated" +%s 2>/dev/null) \
+    || adr_ts="0"
+
   diff_days=$(( (TODAY - adr_ts) / 86400 ))
   if [ "$diff_days" -ge "$ERROR_DAYS" ]; then
-    echo "ERROR: $adr last-validated $diff_days days ago."
+    echo "ERROR: $adr last-validated $diff_days days ago. Update or remove it."
     FAILED=1
   elif [ "$diff_days" -ge "$WARN_DAYS" ]; then
     echo "WARN: $adr last-validated $diff_days days ago."
@@ -34,9 +40,10 @@ for adr in docs/adr/*.md; do
 done
 
 # 3. AGENTS.md / CLAUDE.md 内の壊れたファイルパス参照チェック
+# grep -oP は macOS 非対応のため grep -oE を使用
 for file in AGENTS.md CLAUDE.md; do
   [ -f "$file" ] || continue
-  grep -oP '`[^`]+`' "$file" | tr -d '`' | while read -r path; do
+  grep -oE '`[^`]+`' "$file" | tr -d '`' | while read -r path; do
     if [[ "$path" == */* ]] && [ ! -e "$path" ]; then
       echo "WARN: Broken pointer in $file: $path"
     fi
