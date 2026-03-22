@@ -7,6 +7,34 @@ Harness Engineering best practices — Hooks, Linter, ADR, and guardrails — ar
 
 ---
 
+## Prerequisites
+
+Install the following tools before starting:
+
+**Required (all projects)**
+
+```bash
+# Lefthook — pre-commit hook runner
+brew install lefthook
+
+# jq — JSON processor used in hooks
+brew install jq
+```
+
+**Required per language — install for your stack before running Claude Code**
+
+| Language | Tools | Install |
+|----------|-------|---------|
+| TypeScript / JavaScript | `biome`, `oxlint` | `npm install -D @biomejs/biome oxlint` |
+| Python | `ruff` | `pip install ruff` |
+| Go | `gofumpt`, `golangci-lint` | `brew install gofumpt golangci-lint` |
+| Rust | `rustfmt`, `cargo` | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+
+> Hooks will exit with an error and tell you what's missing if a required tool is not found.  
+> **Do not skip this step** — the PostToolUse hook will fail silently or block Claude Code if tools are absent.
+
+---
+
 ## Getting Started
 
 ### 1. Copy this repository
@@ -17,34 +45,26 @@ git clone https://github.com/Chanmachan/template-repo.git your-project
 cd your-project
 ```
 
-### 2. Install Lefthook (pre-commit hook runner)
+### 2. Install Lefthook
 
 ```bash
-# macOS
-brew install lefthook
-
-# or via npm
-npm install -g lefthook
-
-# Register hooks
 lefthook install
 ```
 
-### 3. Enable linting for your language in `lefthook.yml`
+### 3. Configure hooks for your language
 
-Uncomment the relevant lines:
+**`lefthook.yml`** — uncomment the lint command for your language:
 
-| Language | Line to uncomment | Required tool |
-|----------|-------------------|---------------|
-| TypeScript / JavaScript | `lint-ts` | `npm install -D oxlint @biomejs/biome` |
-| Python | `lint-py` | `pip install ruff` |
-| Go | `lint-go` | `brew install golangci-lint` |
+| Language | Line to uncomment |
+|----------|-------------------|
+| TypeScript / JavaScript | `lint-ts` |
+| Python | `lint-py` |
+| Go | `lint-go` |
 
-### 4. Check `.claude/hooks/post-lint.sh`
+**`.claude/hooks/post-lint.sh`** — TS/JS is enabled by default.  
+For other languages, uncomment the relevant block and comment out the TS/JS block.
 
-`post-lint.sh` auto-detects language by file extension. It works automatically once the linter for your language is installed.
-
-### 5. Fill in `docs/spec.md`
+### 4. Fill in `docs/spec.md`
 
 Write the purpose, goals, and constraints of your project.  
 Claude Code reads this first before starting any implementation.
@@ -53,14 +73,14 @@ Claude Code reads this first before starting any implementation.
 docs/spec.md  ← fill this in
 ```
 
-### 6. Create your first ADR
+### 5. Create your first ADR
 
 ```bash
 cp docs/adr/0000-adr-template.md docs/adr/0001-tech-stack.md
 # Record your tech stack decisions
 ```
 
-### 7. Start Claude Code
+### 6. Start Claude Code
 
 ```bash
 cd your-project
@@ -82,6 +102,7 @@ claude
 │   └── hooks/
 │       ├── protect-config.sh  # Block edits to linter configs (PreToolUse)
 │       ├── post-lint.sh       # Auto-lint after every file edit (PostToolUse)
+│       │                      # ★ Edit this to match your language
 │       └── stop-check.sh      # Block completion until tests pass (Stop)
 │
 ├── docs/
@@ -123,16 +144,19 @@ These run automatically every time Claude Code writes code:
 
 Files you **must** edit:
 
+- [ ] Install language tools (see Prerequisites above)
 - [ ] `docs/spec.md` — Write project purpose and goals
 - [ ] `docs/adr/000*-*.md` — Record your tech stack decisions
 - [ ] `lefthook.yml` — Uncomment the lint command for your language
+- [ ] `.claude/hooks/post-lint.sh` — Uncomment the block for your language
 - [ ] `tasks/todo.md` — Add your first tasks
 - [ ] `AGENTS.md` — Add project-specific rules if needed (keep under 50 lines)
 
 Files you should **not** change (they are the guardrails themselves):
 
 - `.claude/settings.json`
-- `.claude/hooks/`
+- `.claude/hooks/protect-config.sh`
+- `.claude/hooks/stop-check.sh`
 - `scripts/check-doc-health.sh`
 
 ---
