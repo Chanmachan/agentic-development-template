@@ -21,5 +21,5 @@ $ARGUMENTS にはPR番号、URLのいずれかを指定できる。
 
 ## 使い方
 
-/review 123
-/review https://github.com/owner/repo/pull/123
+/fix-review 123
+/fix-review https://github.com/owner/repo/pull/123
