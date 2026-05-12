@@ -59,7 +59,11 @@ description: Use before starting non-trivial implementation work — anything to
 - ユーザが「進めて」と言うまで Edit / Write を実行しない (Plan Mode の本旨)
 - 計画への指摘があれば `tasks/todo.md` を更新して再承認
 
-### 4. 実装中の計画更新
+### 4. 実装前に feature ブランチを切る
+
+承認後・最初の Edit / Write の前に、`.claude/rules/git.md` の命名規則に従って feature ブランチを作成する (`feature/...`, `fix/...` 等)。`main` 上で直接コミットしない。後追いでブランチを切ると履歴が分岐しづらく、PR 単位の差分も汚れる。
+
+### 5. 実装中の計画更新
 
 - 計画と実態が乖離したら、コードを書く前に `tasks/todo.md` を更新する
 - 「メモリに保存」ではなく `tasks/todo.md` を更新するのが原則 (現在の会話のスコープなので)
