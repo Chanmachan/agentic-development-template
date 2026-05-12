@@ -41,9 +41,19 @@ done
 
 # 3. AGENTS.md / CLAUDE.md 内の壊れたファイルパス参照チェック
 # grep -oP は macOS 非対応のため grep -oE を使用
+# バッククォート内に書かれた "/" を含む文字列のうち、明らかにファイルパスでない
+# パターン (slash command / brace 展開 / shell スニペット) はスキップする。
 for file in AGENTS.md CLAUDE.md; do
   [ -f "$file" ] || continue
   grep -oE '`[^`]+`' "$file" | tr -d '`' | while read -r path; do
+    # Skip slash commands like /clear, /compact, /fix-review (single segment after /)
+    [[ "$path" =~ ^/[A-Za-z][A-Za-z0-9_-]*$ ]] && continue
+    # Skip brace expansion patterns like contexts/{dev,review}.md
+    [[ "$path" == *"{"* || "$path" == *"}"* ]] && continue
+    # Skip shell snippets (whitespace or command substitution inside backticks)
+    [[ "$path" == *[[:space:]]* ]] && continue
+    [[ "$path" == *'$('* ]] && continue
+
     if [[ "$path" == */* ]] && [ ! -e "$path" ]; then
       echo "WARN: Broken pointer in $file: $path"
     fi
