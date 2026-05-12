@@ -20,6 +20,11 @@ See: @AGENTS.md
 - `.claude/skills/` — `tdd`, `code-review`, `plan-mode` (オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator` (委譲時にロード)
 
+## Hook profiles and contexts
+
+- フック強度は `HOOK_PROFILE` (`minimal`/`standard`/`strict`) で切り替える。詳細は README とADR 0003。
+- セッション目的別のシステムプロンプトは `contexts/{dev,review,research,debug}.md`。`claude --append-system-prompt "$(cat contexts/dev.md)"` で注入。
+
 ## Editing rules
 
 - Fix code errors from hooks before proceeding.

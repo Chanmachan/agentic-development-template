@@ -28,3 +28,4 @@
 - hooks: `.claude/hooks/`
 - skills: `.claude/skills/`
 - subagents: `.claude/agents/`
+- session contexts: `contexts/`
