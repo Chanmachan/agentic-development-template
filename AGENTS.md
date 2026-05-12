@@ -26,3 +26,5 @@
 - specs/docs: `docs/`
 - tasks: `tasks/`
 - hooks: `.claude/hooks/`
+- skills: `.claude/skills/`
+- subagents: `.claude/agents/`
