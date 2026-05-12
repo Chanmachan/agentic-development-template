@@ -4,9 +4,11 @@
 //
 // Profile: strict only (per ADR 0003 §1). minimal/standard exit immediately.
 //
-// Token estimate is intentionally rough — transcript bytes / 4 — and biases
-// high because JSONL overhead is included. Treat it as an approximate signal,
-// not an exact count. Override the threshold with $SUGGEST_COMPACT_THRESHOLD.
+// Token estimate is intentionally rough. We divide transcript bytes by 2:
+//   - English: ~1 token / 4 bytes → this overestimates ~2x (earlier warning).
+//   - Japanese: ~1 token / 3 bytes UTF-8 → still slightly overestimates.
+// Early-warning bias is intentional for an advisory hook. JSONL overhead in the
+// transcript adds further inflation. Override via $SUGGEST_COMPACT_THRESHOLD.
 
 import { statSync } from "node:fs";
 
@@ -36,7 +38,7 @@ try {
   process.exit(0);
 }
 
-const estTokens = Math.floor(bytes / 4);
+const estTokens = Math.floor(bytes / 2);
 if (estTokens < threshold) process.exit(0);
 
 const msg =
