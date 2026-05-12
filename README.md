@@ -99,11 +99,18 @@ claude
 │
 ├── .claude/
 │   ├── settings.json      # Claude Code Hook & permission settings
+│   ├── agents/            # Subagents (planner, code-reviewer, investigator)
+│   ├── skills/            # On-demand skills (tdd, code-review, plan-mode)
+│   ├── commands/          # Slash commands (e.g. /fix-review)
 │   └── hooks/
+│       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks)
 │       ├── protect-config.sh  # Block edits to linter configs (PreToolUse)
 │       ├── post-lint.sh       # Auto-lint after every file edit (PostToolUse)
 │       │                      # ★ Edit this to match your language
-│       └── stop-check.sh      # Block completion until tests pass (Stop)
+│       ├── stop-check.sh      # Block completion until tests pass (Stop)
+│       └── suggest-compact.mjs # Suggest /clear when context fills (strict only)
+│
+├── contexts/              # Session-purpose system prompts (dev/review/research/debug)
 │
 ├── docs/
 │   ├── spec.md            # ★ Project specification (edit this first)
@@ -136,7 +143,53 @@ These run automatically every time Claude Code writes code:
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
 | Before config file edit (PreToolUse) | Blocks changes to `eslint.config`, `biome.json`, etc. |
 | On completion (Stop) | Blocks the session from ending until lint and tests pass |
+| Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | Before commit (Lefthook) | Checks `AGENTS.md` line count and ADR freshness |
+
+---
+
+## Hook Profiles
+
+Hooks are gated by `HOOK_PROFILE` (default `standard`). Set it per session to dial guardrail strength up or down without disabling hooks entirely. See ADR 0003 for rationale.
+
+| Profile | Active hooks | Use when |
+|---------|--------------|----------|
+| `minimal` | post-lint | Prototyping, demos, external repos |
+| `standard` (default) | post-lint, protect-config, stop-check | Day-to-day development |
+| `strict` | all of standard + suggest-compact (+ future hooks) | Pre-release, hardening branches |
+
+```bash
+HOOK_PROFILE=minimal claude     # loosen
+HOOK_PROFILE=strict claude      # tighten
+```
+
+`suggest-compact.mjs` uses transcript byte size / 4 as a rough token estimate. Override the threshold via `SUGGEST_COMPACT_THRESHOLD` (default `140000`).
+
+---
+
+## Session Contexts
+
+`contexts/*.md` are purpose-specific system prompts that complement `CLAUDE.md` (which stays minimal and universal). Inject one at session start:
+
+```bash
+claude --append-system-prompt "$(cat contexts/dev.md)"
+```
+
+Suggested shell aliases:
+
+```bash
+alias cc-dev='claude --append-system-prompt "$(cat contexts/dev.md)"'
+alias cc-review='HOOK_PROFILE=strict claude --append-system-prompt "$(cat contexts/review.md)"'
+alias cc-research='claude --append-system-prompt "$(cat contexts/research.md)"'
+alias cc-debug='claude --append-system-prompt "$(cat contexts/debug.md)"'
+```
+
+| Context | Focus |
+|---------|-------|
+| `dev.md` | Plan → TDD → Verify, subagent delegation rules |
+| `review.md` | Read-only stance, Blocking/Suggestion/Nit categorization |
+| `research.md` | Comparing options, writing to `research/`, promoting to ADR |
+| `debug.md` | Reproduce → hypothesize → verify → fix loop |
 
 ---
 
