@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/lib/profile.sh"
+hook_profile_skip stop-check
+
 # Prevent infinite loop when stop hook re-triggers itself
 input="$(cat)"
 if echo "$input" | jq -e '.stop_hook_active // false' >/dev/null 2>&1; then
