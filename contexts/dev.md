@@ -2,10 +2,14 @@
 
 このセッションは **新機能実装 / バグ修正** を目的とする。CLAUDE.md と AGENTS.md は引き続き有効。本ファイルはその差分。
 
+> **本ファイルの役割**: セッション開始時の "姿勢" を Claude に伝える。
+> **Skills の役割**: 個々のフェーズ (TDD など) の手順詳細。
+> 重複させず、姿勢と手順を分担する。手順は skill 側に置き、ここからは参照だけする。
+
 ## Workflow
 
-1. **Plan first** — 非自明な変更は必ず `tasks/todo.md` に計画を書き、ユーザ承認を得てから着手する。`plan-mode` skill を参照
-2. **TDD で進める** — 失敗するテスト → 最小実装 → リファクタの順。`tdd` skill を参照
+1. **Plan first** — 非自明な変更は必ず `tasks/todo.md` に計画を書き、ユーザ承認を得てから着手する。手順は `plan-mode` skill
+2. **TDD で進める** — 振る舞いを変える前にテストを書く。手順は `tdd` skill
 3. **Verify before stopping** — lint / typecheck / tests を通す。`stop-check.sh` が止めてくれる前に自分で走らせる
 4. **Commit in small units** — 1 コミット = 1 論理変更。複数の関心事を 1 コミットに混ぜない
 
