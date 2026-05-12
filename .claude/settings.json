@@ -18,6 +18,15 @@
             "command": "bash .claude/hooks/protect-config.sh"
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/suggest-compact.mjs"
+          }
+        ]
       }
     ],
     "PostToolUse": [
