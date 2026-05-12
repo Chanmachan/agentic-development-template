@@ -13,6 +13,11 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 
 読み取り専用の姿勢を保つ。レビュー中は `Edit` / `Write` を使わない (必要なら指摘として残す)。
 
+### Skill vs subagent
+
+- **この skill (`code-review`)** はメイン文脈で短い差分 (〜数百行) を直接読んでレビューするときに使う。
+- 差分が大きくメイン文脈を圧迫しそうなら **`code-reviewer` subagent** に委譲する (Read/Grep/Glob/Bash のみで、差分全文を別文脈で読み込む)。チェックリストは同じ。
+
 ## Review checklist
 
 優先度の高い順に確認する。各観点で問題が見つかったら、ファイル名と行番号を引用して指摘する。
