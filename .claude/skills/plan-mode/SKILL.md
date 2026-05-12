@@ -71,6 +71,6 @@ description: Use before starting non-trivial implementation work — anything to
 ## Anti-patterns
 
 - 計画なしで非自明な変更を始める
-- `tasks/todo.md` に書かず、会話文脈にだけ計画を残す (`/clear` で消える)
+- `tasks/todo.md` に書かず、会話文脈にだけ計画を残す (`/clear` で消える、Plan と Implement の境界が曖昧になり承認の所在も失われる)
 - 承認なしに Edit を実行する
 - 計画と実装の乖離を放置する
