@@ -40,6 +40,8 @@ esac
 
 将来 `.claude/hooks/lib/profile.sh` (bash 用) と `.claude/hooks/lib/profile.mjs` (Node.js 用) として共通ライブラリ化する。
 
+**未知の profile への扱い**: タイポや非対応値 (`HOOK_PROFILE=bogus` など) は WARN を stderr に出した上で `standard` 相当として動作させる (fail-soft)。理由は (a) テンプレートが利用者に対して厳しすぎないこと、(b) 値の typo で開発が止まる事故を避けること。ECC など本番運用前提のシステムでは reject する選択肢もあるが、本リポジトリはテンプレートのため fail-soft を採用する。
+
 ### 2. contexts/ ディレクトリの新設
 
 リポジトリルートに `contexts/` を作り、セッション目的別のシステムプロンプトを置く。
