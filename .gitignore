@@ -34,3 +34,6 @@
 /config/master.key
 
 .idea
+
+# Claude Code personal-scope project notes (not shared with team)
+CLAUDE.local.md
