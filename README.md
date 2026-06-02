@@ -100,8 +100,9 @@ claude
 ├── .claude/
 │   ├── settings.json      # Claude Code Hook & permission settings
 │   ├── agents/            # Subagents (planner, code-reviewer, investigator)
+│   │   └── reviewers/     # Per-perspective review subagents (correctness, security, tests, performance, readability, docs-adr)
 │   ├── skills/            # On-demand skills (tdd, code-review, plan-mode)
-│   ├── commands/          # Slash commands (e.g. /fix-review)
+│   ├── commands/          # Slash commands (/fix-review, /handoff, /multi-review)
 │   └── hooks/
 │       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks)
 │       ├── protect-config.sh  # Block edits to linter configs (PreToolUse)
@@ -190,6 +191,30 @@ alias cc-debug='claude --append-system-prompt "$(cat contexts/debug.md)"'
 | `review.md` | Read-only stance, Blocking/Suggestion/Nit categorization |
 | `research.md` | Comparing options, writing to `research/`, promoting to ADR |
 | `debug.md` | Reproduce → hypothesize → verify → fix loop |
+
+---
+
+## Code Review
+
+Four mechanisms with different cost/depth trade-offs. Pick by context, not habit.
+
+| Mechanism | Where | When to use |
+|-----------|-------|-------------|
+| `code-review` skill | Main conversation | Short diffs (~few hundred lines), inline self-review before commit |
+| `code-reviewer` subagent | Isolated read-only context | Single-perspective review of a large diff that would pollute the main context |
+| `/multi-review` command | 6 isolated contexts in parallel | Full PR review. 6 specialists (correctness / security / tests / performance / readability / docs-adr) evaluate independently and a coordinator merges findings |
+| `/ultrareview` (builtin) | Anthropic cloud | Pre-merge final gate. Independent verification suppresses false positives. Billed |
+
+`/multi-review` is the default for PR review. Each reviewer lives in `.claude/agents/reviewers/<angle>.md` with read-only tools (`Read, Grep, Glob, Bash`) and a fixed-shape body (Mission / Checklist / Process / Output / Rules). The `docs-adr` reviewer is adaptive: it auto-skips ADR/spec/rule checks when those files are absent, so the entire `.claude/agents/reviewers/` directory is portable to other repositories.
+
+```bash
+/multi-review                # local HEAD vs main
+/multi-review 123            # PR #123
+/multi-review 123 --skip=performance,docs-adr
+/multi-review 123 --only=security,correctness
+```
+
+See ADR 0004 for the design rationale.
 
 ---
 
