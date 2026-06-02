@@ -19,6 +19,9 @@ brew install lefthook
 
 # jq — JSON processor used in hooks
 brew install jq
+
+# gh — GitHub CLI (used by /fix-review and /multi-review for PR operations)
+brew install gh && gh auth login
 ```
 
 **Required per language — install for your stack before running Claude Code**
@@ -95,13 +98,14 @@ claude
 .
 ├── AGENTS.md              # Universal agent instructions (keep under 50 lines)
 ├── CLAUDE.md              # Claude Code-specific instructions
+├── CLAUDE.local.md        # (optional, gitignored) personal project notes
 ├── lefthook.yml           # Pre-commit hook configuration
 │
 ├── .claude/
 │   ├── settings.json      # Claude Code Hook & permission settings
 │   ├── agents/            # Subagents (planner, code-reviewer, investigator)
 │   │   └── reviewers/     # Per-perspective review subagents (correctness, security, tests, performance, readability, docs-adr)
-│   ├── skills/            # On-demand skills (tdd, code-review, plan-mode)
+│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review)
 │   ├── commands/          # Slash commands (/fix-review, /handoff, /multi-review)
 │   └── hooks/
 │       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks)
@@ -244,13 +248,15 @@ Files you should **not** change (they are the guardrails themselves):
 ```
 1. Dump all ideas into idea/
 2. Research and explore in research/
-3. Consolidate into docs/spec.md
+3. Consolidate into docs/spec.md  ← use the `spec-interview` skill to drive this interactively
 4. Record decisions in docs/adr/
-5. Break work into tasks/todo.md
-6. Run `claude` and start building
+5. Break work into tasks/todo.md  ← use the `plan-mode` skill
+6. Run `claude` and start building (TDD via the `tdd` skill)
 ```
 
 **Write the spec before writing code.** Claude Code reads `docs/spec.md` and `docs/adr/` before implementing anything.
+
+The `spec-interview` skill uses `AskUserQuestion` to walk you through purpose / scope / acceptance criteria / constraints / trade-offs, then writes the result to `docs/spec.md`. Run it in its own session, then `/clear` and start a fresh session for implementation — this keeps specification bias from leaking into implementation decisions.
 
 ---
 
