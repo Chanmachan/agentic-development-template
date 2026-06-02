@@ -38,8 +38,10 @@
 
 ## Delegation
 
-- 大きな diff は `code-reviewer` subagent に委譲 (read-only ツールのみ、メイン文脈を汚さない)
-- 関連コードベースの調査が必要なら `investigator` subagent
+- **フル PR レビュー (観点別並列)** → `/multi-review` コマンド (6 専門 reviewer: correctness / security / tests / performance / readability / docs-adr)
+- **1 観点で十分な汎用レビュー** → `code-reviewer` subagent (read-only ツールのみ、別文脈)
+- **merge 直前の最終ゲート** → `/ultrareview` builtin (独立検証、課金あり)
+- **関連コードベースの調査** → `investigator` subagent
 
 ## Anti-patterns
 
