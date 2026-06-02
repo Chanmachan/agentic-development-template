@@ -18,10 +18,19 @@ MSG=""
 if [ -f "Makefile" ] && grep -q "^test:" Makefile; then
   make test >/dev/null 2>&1 || { FAILED=1; MSG="make test failed."; }
 
-# TypeScript / JavaScript
+# TypeScript / JavaScript — auto-detect pnpm via lockfile or packageManager field.
+# yarn / bun are not auto-detected (YAGNI); customize per-project if needed.
+# `typecheck` script is soft-failed when absent (silenced stderr).
 elif [ -f "package.json" ]; then
-  npm run lint >/dev/null 2>&1 || { FAILED=1; MSG+=" lint failed."; }
-  npm test >/dev/null 2>&1 || { FAILED=1; MSG+=" tests failed."; }
+  if [ -f "pnpm-lock.yaml" ] || grep -q '"packageManager"\s*:\s*"pnpm@' package.json 2>/dev/null; then
+    pnpm lint >/dev/null 2>&1 || { FAILED=1; MSG+=" lint failed."; }
+    pnpm typecheck >/dev/null 2>&1 || { FAILED=1; MSG+=" typecheck failed."; }
+    pnpm test >/dev/null 2>&1 || { FAILED=1; MSG+=" tests failed."; }
+  else
+    npm run lint >/dev/null 2>&1 || { FAILED=1; MSG+=" lint failed."; }
+    npm run typecheck >/dev/null 2>&1 || { FAILED=1; MSG+=" typecheck failed."; }
+    npm test >/dev/null 2>&1 || { FAILED=1; MSG+=" tests failed."; }
+  fi
 
 # Python
 elif [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
