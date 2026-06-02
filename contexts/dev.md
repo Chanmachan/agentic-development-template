@@ -8,10 +8,13 @@
 
 ## Workflow
 
-1. **Plan first** — 非自明な変更は必ず `tasks/todo.md` に計画を書き、ユーザ承認を得てから着手する。手順は `plan-mode` skill
-2. **TDD で進める** — 振る舞いを変える前にテストを書く。手順は `tdd` skill
-3. **Verify before stopping** — lint / typecheck / tests を通す。`stop-check.sh` が止めてくれる前に自分で走らせる
-4. **Commit in small units** — 1 コミット = 1 論理変更。複数の関心事を 1 コミットに混ぜない
+公式の 4 フェーズ (Explore → Plan → Implement → Commit) に Verify を挟んだ 5 段で進める。
+
+1. **Explore first** — 未知のコードに触る前に Plan Mode (`Shift+Tab` で切替) または `investigator` subagent で読み取り、判断材料を集める。Edit/Write はしない。手順詳細は `plan-mode` skill の "Inputs を揃える"
+2. **Plan** — 非自明な変更は必ず `tasks/todo.md` に計画を書き、ユーザ承認を得てから着手する。手順は `plan-mode` skill。仕様自体が無い場合は先に `spec-interview` skill で `docs/spec.md` を確定させる
+3. **Implement (TDD)** — 振る舞いを変える前にテストを書く。手順は `tdd` skill
+4. **Verify before stopping** — 計画段階で **"何が pass/fail を示すか" を明文化**しておく (失敗するテスト、ビルド終了コード、スクリーンショット差分、ログ出力)。Claude 自身が読める形にすることで `stop-check.sh` を待たず自走できる。実装後は lint / typecheck / tests を自分で走らせる
+5. **Commit in small units** — 1 コミット = 1 論理変更。複数の関心事を 1 コミットに混ぜない
 
 ## Subagent delegation
 
