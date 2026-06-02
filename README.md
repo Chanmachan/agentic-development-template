@@ -146,8 +146,8 @@ These run automatically every time Claude Code writes code:
 | Trigger | Behavior |
 |---------|----------|
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
-| Before config file edit (PreToolUse) | Blocks changes to `eslint.config`, `biome.json`, etc. |
-| On completion (Stop) | Blocks the session from ending until lint and tests pass |
+| Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins. `*.example` / `*.sample` / `*.template` are allowlisted |
+| On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
 | Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | Before commit (Lefthook) | Checks `AGENTS.md` line count and ADR freshness |
 
