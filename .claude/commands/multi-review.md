@@ -6,9 +6,9 @@
 
 単一 reviewer に全観点を任せると見落としやバイアスが出やすい。**観点ごとに独立した文脈** で評価することで、(a) 各 reviewer が境界外に踏み込まず深く見れる、(b) 並列実行で時間短縮、(c) 観点別の Blocking 件数が一覧できマージ判断しやすい。
 
-builtin `/ultrareview` との棲み分け:
-- **このコマンド** = ローカル / 即時 / 無料 / カスタマイズ可能 (反復レビュー、CI 連携、PR 提出前の最終確認向け)
-- **`/ultrareview`** = クラウド / 5-10 分 / 課金 / 独立検証込み (merge 直前のゲート向け)
+レビュー手段の棲み分け:
+- **このコマンド** = ローカル / 即時 / カスタマイズ可能 (反復レビュー、CI 連携、PR 提出前の最終確認向け)
+- **`code-reviewer` subagent** = 1 つの別文脈で大きめの diff を汎用レビューしたい場合
 
 ## 引数
 
@@ -103,4 +103,3 @@ $ARGUMENTS は任意:
 | `code-review` skill | inline 小差分 (~数百行) を main 文脈で直接見る |
 | `/multi-review` (このコマンド) | フル PR を 6 観点で並列レビュー、ローカル、無料 |
 | `code-reviewer` subagent | 1 観点に絞らず汎用に長文 diff を別文脈で見たい場合 |
-| `/ultrareview` (builtin) | merge 直前の最終確認。独立検証で false positive を抑えたいとき (課金) |

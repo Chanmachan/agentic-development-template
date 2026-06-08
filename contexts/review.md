@@ -38,9 +38,9 @@
 
 ## Delegation
 
-- **フル PR レビュー (観点別並列)** → `/multi-review` コマンド (6 専門 reviewer: correctness / security / tests / performance / readability / docs-adr)
+- **フル PR レビュー (観点別並列)** → multi-review workflow (6 専門 reviewer: correctness / security / tests / performance / readability / docs-adr)
 - **1 観点で十分な汎用レビュー** → `code-reviewer` subagent (read-only ツールのみ、別文脈)
-- **merge 直前の最終ゲート** → `/ultrareview` builtin (独立検証、課金あり)
+- **merge 直前の最終ゲート** → 利用中ツールに独立レビュー機能があれば使う
 - **関連コードベースの調査** → `investigator` subagent
 
 ## Anti-patterns
