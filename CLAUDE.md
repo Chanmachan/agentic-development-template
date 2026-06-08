@@ -4,10 +4,16 @@ See: @AGENTS.md
 
 ## Workflow phases
 
-1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/todo.md` に残す。
+1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/todo.md` または task-specific な todo ファイルに残す。
 2. **Implement** — `tdd` skill に従い、失敗するテスト → 最小実装 → リファクタの順で進める。
 3. **Verify** — lint / typecheck / test を通す (`stop-check.sh` が強制)。
 4. **Commit** — `.claude/rules/git.md` に従う。PR レビュー対応は `/fix-review` コマンドを使う。
+5. **Archive** — 完了 / 凍結したタスクは `tasks/todo.md` から `tasks/done/{slug}.md` に移し、todo には in-flight の作業だけを残す。
+
+## Task tracking
+
+- セッション開始時は `tasks/todo.md` と `tasks/done/` 内の最新タスクノートを読み、現在状態と直近の経緯を把握する。
+- `tasks/done/{slug}.md` は self-contained に保つ (概要 / ブランチ / コミット / PR / 検証結果)。
 
 ## Context management
 

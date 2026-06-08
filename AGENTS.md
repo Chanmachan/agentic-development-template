@@ -10,7 +10,8 @@
     - `docs/spec.md`
     - relevant ADRs in `docs/adr/`
 - Plan → approval → implement. Never start coding without a plan.
-- Implementation work goes on a feature branch (see `.claude/rules/git.md`), never directly on `main`.
+- Implementation work goes on a feature branch (see `.claude/rules/git.md` / `.codex/rules/git.md`), never directly on `main`.
+- If `tasks/todo.md` is occupied by another in-flight task, use a task-specific todo file under `tasks/` instead.
 
 ## Quality gates
 - Run lint, typecheck, and tests before finishing.
@@ -26,7 +27,7 @@
 - research: `research/`
 - specs/docs: `docs/`
 - tasks: `tasks/`
-- hooks: `.claude/hooks/`
-- skills: `.claude/skills/`
-- subagents: `.claude/agents/`
+- Claude hooks/skills/subagents/rules: `.claude/`
+- Codex hooks/agents/rules: `.codex/`
+- Codex skills: `.agents/skills/`
 - session contexts: `contexts/`

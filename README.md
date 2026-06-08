@@ -24,7 +24,7 @@ brew install jq
 brew install gh && gh auth login
 ```
 
-**Required per language — install for your stack before running Claude Code**
+**Required per language — install for your stack before running Claude Code or Codex**
 
 | Language | Tools | Install |
 |----------|-------|---------|
@@ -34,7 +34,7 @@ brew install gh && gh auth login
 | Rust | `rustfmt`, `cargo` | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 
 > Hooks will exit with an error and tell you what's missing if a required tool is not found.  
-> **Do not skip this step** — the PostToolUse hook will fail silently or block Claude Code if tools are absent.
+> **Do not skip this step** — the PostToolUse hook can block Claude Code or Codex if tools are absent.
 
 ---
 
@@ -64,13 +64,13 @@ lefthook install
 | Python | `lint-py` |
 | Go | `lint-go` |
 
-**`.claude/hooks/post-lint.sh`** — TS/JS is enabled by default.  
+**`.claude/hooks/post-lint.sh` / `.codex/hooks/post-lint.sh`** — TS/JS is enabled by default.  
 For other languages, uncomment the relevant block and comment out the TS/JS block.
 
 ### 4. Fill in `docs/spec.md`
 
 Write the purpose, goals, and constraints of your project.  
-Claude Code reads this first before starting any implementation.
+Claude Code and Codex read this first before starting any implementation.
 
 ```
 docs/spec.md  ← fill this in
@@ -83,11 +83,12 @@ cp docs/adr/0000-adr-template.md docs/adr/0001-tech-stack.md
 # Record your tech stack decisions
 ```
 
-### 6. Start Claude Code
+### 6. Start an agent session
 
 ```bash
 cd your-project
-claude
+claude   # Claude Code
+codex    # Codex
 ```
 
 ---
@@ -115,6 +116,16 @@ claude
 │       ├── stop-check.sh      # Block completion until tests pass (Stop)
 │       └── suggest-compact.mjs # Suggest /clear when context fills (strict only)
 │
+├── .codex/
+│   ├── hooks.json         # Codex hook settings
+│   ├── agents/            # Codex subagent TOML files
+│   │                      # Includes review-*.toml perspective reviewers
+│   ├── rules/             # Codex-local reusable rules
+│   └── hooks/             # Codex hook scripts mirroring .claude/hooks
+│
+├── .agents/
+│   └── skills/            # Codex skills (spec-interview, plan-mode, tdd, code-review, fix-review, handoff, multi-review)
+│
 ├── contexts/              # Session-purpose system prompts (dev/review/research/debug)
 │
 ├── docs/
@@ -128,6 +139,7 @@ claude
 │
 ├── tasks/
 │   ├── todo.md            # Current tasks and progress
+│   └── done/              # Completed/frozen task notes
 │   └── tasks.jsonl        # Task list for automated development runs
 │
 ├── scripts/
@@ -141,7 +153,7 @@ claude
 
 ## Built-in Guardrails
 
-These run automatically every time Claude Code writes code:
+These run automatically when the configured agent writes code:
 
 | Trigger | Behavior |
 |---------|----------|
@@ -164,8 +176,10 @@ Hooks are gated by `HOOK_PROFILE` (default `standard`). Set it per session to di
 | `strict` | all of standard + suggest-compact (+ future hooks) | Pre-release, hardening branches |
 
 ```bash
-HOOK_PROFILE=minimal claude     # loosen
-HOOK_PROFILE=strict claude      # tighten
+HOOK_PROFILE=minimal claude     # loosen Claude Code
+HOOK_PROFILE=strict claude      # tighten Claude Code
+HOOK_PROFILE=minimal codex      # loosen Codex
+HOOK_PROFILE=strict codex       # tighten Codex
 ```
 
 `suggest-compact.mjs` uses transcript byte size / 4 as a rough token estimate. Override the threshold via `SUGGEST_COMPACT_THRESHOLD` (default `140000`).
@@ -174,7 +188,7 @@ HOOK_PROFILE=strict claude      # tighten
 
 ## Session Contexts
 
-`contexts/*.md` are purpose-specific system prompts that complement `CLAUDE.md` (which stays minimal and universal). Inject one at session start:
+`contexts/*.md` are purpose-specific system prompts. For Claude Code they complement `CLAUDE.md`; for Codex they complement `AGENTS.md` and project skills. Inject one at session start when your tool supports an appended system prompt:
 
 ```bash
 claude --append-system-prompt "$(cat contexts/dev.md)"
@@ -206,10 +220,10 @@ Four mechanisms with different cost/depth trade-offs. Pick by context, not habit
 |-----------|-------|-------------|
 | `code-review` skill | Main conversation | Short diffs (~few hundred lines), inline self-review before commit |
 | `code-reviewer` subagent | Isolated read-only context | Single-perspective review of a large diff that would pollute the main context |
-| `/multi-review` command | 6 isolated contexts in parallel | Full PR review. 6 specialists (correctness / security / tests / performance / readability / docs-adr) evaluate independently and a coordinator merges findings |
-| `/ultrareview` (builtin) | Anthropic cloud | Pre-merge final gate. Independent verification suppresses false positives. Billed |
+| `multi-review` workflow | 6 isolated contexts in parallel | Full PR review. 6 specialists (correctness / security / tests / performance / readability / docs-adr) evaluate independently and a coordinator merges findings |
+| External independent review | Tool-dependent | Pre-merge final gate when independent verification is needed |
 
-`/multi-review` is the default for PR review. Each reviewer lives in `.claude/agents/reviewers/<angle>.md` with read-only tools (`Read, Grep, Glob, Bash`) and a fixed-shape body (Mission / Checklist / Process / Output / Rules). The `docs-adr` reviewer is adaptive: it auto-skips ADR/spec/rule checks when those files are absent, so the entire `.claude/agents/reviewers/` directory is portable to other repositories.
+`multi-review` is the default for PR review. Each reviewer lives in `.claude/agents/reviewers/<angle>.md` for Claude Code and `.codex/agents/review-<angle>.toml` for Codex, with read-only intent and a fixed-shape body (Mission / Checklist / Process / Output / Rules). The `docs-adr` reviewer is adaptive: it auto-skips ADR/spec/rule checks when those files are absent, so the reviewer setup is portable to other repositories.
 
 ```bash
 /multi-review                # local HEAD vs main
@@ -230,15 +244,16 @@ Files you **must** edit:
 - [ ] `docs/spec.md` — Write project purpose and goals
 - [ ] `docs/adr/000*-*.md` — Record your tech stack decisions
 - [ ] `lefthook.yml` — Uncomment the lint command for your language
-- [ ] `.claude/hooks/post-lint.sh` — Uncomment the block for your language
-- [ ] `tasks/todo.md` — Add your first tasks
+- [ ] `.claude/hooks/post-lint.sh` / `.codex/hooks/post-lint.sh` — Uncomment the block for your language
+- [ ] `tasks/todo.md` or `tasks/<slug>-todo.md` — Add your first tasks
 - [ ] `AGENTS.md` — Add project-specific rules if needed (keep under 50 lines)
 
 Files you should **not** change (they are the guardrails themselves):
 
 - `.claude/settings.json`
-- `.claude/hooks/protect-config.sh`
-- `.claude/hooks/stop-check.sh`
+- `.codex/hooks.json`
+- `.claude/hooks/protect-config.sh` / `.codex/hooks/protect-config.sh`
+- `.claude/hooks/stop-check.sh` / `.codex/hooks/stop-check.sh`
 - `scripts/check-doc-health.sh`
 
 ---
@@ -250,11 +265,11 @@ Files you should **not** change (they are the guardrails themselves):
 2. Research and explore in research/
 3. Consolidate into docs/spec.md  ← use the `spec-interview` skill to drive this interactively
 4. Record decisions in docs/adr/
-5. Break work into tasks/todo.md  ← use the `plan-mode` skill
-6. Run `claude` and start building (TDD via the `tdd` skill)
+5. Break work into `tasks/todo.md` or `tasks/<slug>-todo.md`  ← use the `plan-mode` skill
+6. Run `claude` or `codex` and start building (TDD via the `tdd` skill)
 ```
 
-**Write the spec before writing code.** Claude Code reads `docs/spec.md` and `docs/adr/` before implementing anything.
+**Write the spec before writing code.** Claude Code and Codex read `docs/spec.md` and `docs/adr/` before implementing anything.
 
 The `spec-interview` skill uses `AskUserQuestion` to walk you through purpose / scope / acceptance criteria / constraints / trade-offs, then writes the result to `docs/spec.md`. Run it in its own session, then `/clear` and start a fresh session for implementation — this keeps specification bias from leaking into implementation decisions.
 
