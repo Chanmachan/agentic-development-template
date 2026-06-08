@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Use when reviewing a pull request, a diff, or a set of staged changes. Provides a structured review checklist (correctness, tests, security, readability, scope). Trigger when the user asks to "review", "look over", "check", or "give feedback on" code changes, or invokes the /review or /fix-review commands.
+description: Use when reviewing a pull request, a diff, or a set of staged changes. Provides a structured review checklist (correctness, tests, security, readability, scope). Trigger when the user asks to "review", "look over", "check", or "give feedback on" code changes, or asks to respond to PR review comments.
 ---
 
 # Code Review Skill
@@ -9,7 +9,7 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 
 - PR レビュー (自分の PR、他人の PR どちらも)
 - staged な差分の自己レビュー (commit 前の最終確認)
-- `/review` / `/fix-review` コマンド経由
+- PR review comments への対応前の整理
 
 読み取り専用の姿勢を保つ。レビュー中は `Edit` / `Write` を使わない (必要なら指摘として残す)。
 
@@ -19,7 +19,8 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 |------|------|----------|
 | **この skill (`code-review`)** | メイン文脈 | 短い差分 (〜数百行) を直接読んで inline でレビュー |
 | **`code-reviewer` subagent** | 別文脈 (read-only) | 1 観点で済む汎用レビューを別文脈で。大きな diff を main 文脈に流したくないとき |
-| **`/multi-review` command** | 別文脈 × 6 並列 | 6 専門 reviewer (correctness / security / tests / performance / readability / docs-adr) を並列起動して観点別に深く評価。PR レビューの基本形 |
+| **multi-review workflow** | 別文脈 × 6 並列 | 6 専門 reviewer (correctness / security / tests / performance / readability / docs-adr) を並列起動して観点別に深く評価。PR レビューの基本形 |
+| **external independent review** | 利用中ツール依存 | merge 直前の最終ゲート。独立検証が必要なとき |
 
 チェックリストは全手段で共通の優先度順 (下記)。違いは「どの文脈でどこまで深く / 何並列で見るか」のみ。
 
@@ -69,6 +70,8 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 
 ## Delegate when appropriate
 
-- **観点別に深く見たい / フル PR レビュー** → `/multi-review` (6 専門 reviewer 並列)
+- **観点別に深く見たい / フル PR レビュー** → multi-review workflow (6 専門 reviewer 並列)
 - **1 観点で済むが diff が大きい** → `code-reviewer` subagent (汎用 1-agent)
+- **merge 直前の最終ゲート** → 利用中ツールの独立レビュー機能があれば使う
+
 メイン文脈に差分全文を読み込むとコンテキストを大きく消費するため、いずれも別文脈に委譲する判断を優先する。

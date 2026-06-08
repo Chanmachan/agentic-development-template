@@ -1,3 +1,8 @@
+---
+name: multi-review
+description: Use when reviewing a full PR or large diff from multiple independent perspectives. Runs correctness, security, tests, performance, readability, and docs-adr review angles and consolidates Blocking/Suggestion/Nit findings.
+---
+
 # Multi-Perspective PR Review
 
 6 つの専門 reviewer subagent (correctness / security / tests / performance / readability / docs-adr) を並列起動し、観点別に独立評価した結果を 1 つの統合レポートにまとめる。
@@ -7,7 +12,7 @@
 単一 reviewer に全観点を任せると見落としやバイアスが出やすい。**観点ごとに独立した文脈** で評価することで、(a) 各 reviewer が境界外に踏み込まず深く見れる、(b) 並列実行で時間短縮、(c) 観点別の Blocking 件数が一覧できマージ判断しやすい。
 
 レビュー手段の棲み分け:
-- **このコマンド** = ローカル / 即時 / カスタマイズ可能 (反復レビュー、CI 連携、PR 提出前の最終確認向け)
+- **この workflow** = ローカル / 即時 / カスタマイズ可能 (反復レビュー、CI 連携、PR 提出前の最終確認向け)
 - **`code-reviewer` subagent** = 1 つの別文脈で大きめの diff を汎用レビューしたい場合
 
 ## 引数
@@ -28,7 +33,7 @@ $ARGUMENTS は任意:
 2. **適用する reviewer の決定**
    - デフォルト: `review-correctness`, `review-security`, `review-tests`, `review-performance`, `review-readability`, `review-docs-adr` の 6 つ
    - `--skip` / `--only` を反映
-   - **docs-adr reviewer の adaptive skip**: `docs/adr/` も `docs/spec.md` も `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` も無いリポジトリでは `review-docs-adr` を自動 skip (reviewer 側でも adaptive 動作するが、起動コストを節約)
+   - **docs-adr reviewer の adaptive skip**: `docs/adr/` も `docs/spec.md` も `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` / `.codex/rules/` も無いリポジトリでは `review-docs-adr` を自動 skip (reviewer 側でも adaptive 動作するが、起動コストを節約)
 3. **並列起動**
    - Agent tool を **1 メッセージ内で複数 tool_use** として並列発行 (subagent_type=`review-<angle>`)
    - 各 reviewer の prompt には次を渡す:
@@ -89,11 +94,11 @@ $ARGUMENTS は任意:
 ## 使い方
 
 ```
-/multi-review                  # ローカル HEAD vs main をレビュー
-/multi-review 123              # PR #123 をレビュー
-/multi-review https://github.com/owner/repo/pull/123
-/multi-review 123 --skip=performance,docs-adr
-/multi-review 123 --only=security,correctness
+multi-review 現在のブランチを main と比較してレビュー
+multi-review PR #123 をレビュー
+multi-review https://github.com/owner/repo/pull/123 をレビュー
+multi-review PR #123 を performance,docs-adr 以外でレビュー
+multi-review PR #123 を security,correctness のみでレビュー
 ```
 
 ## 関連ツールとの使い分け
@@ -101,5 +106,5 @@ $ARGUMENTS は任意:
 | 手段 | 使いどき |
 |------|----------|
 | `code-review` skill | inline 小差分 (~数百行) を main 文脈で直接見る |
-| `/multi-review` (このコマンド) | フル PR を 6 観点で並列レビュー、ローカル、無料 |
+| `multi-review` skill | フル PR を 6 観点で並列レビュー、ローカル |
 | `code-reviewer` subagent | 1 観点に絞らず汎用に長文 diff を別文脈で見たい場合 |
