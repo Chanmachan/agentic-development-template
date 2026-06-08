@@ -20,7 +20,6 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 | **この skill (`code-review`)** | メイン文脈 | 短い差分 (〜数百行) を直接読んで inline でレビュー |
 | **`code-reviewer` subagent** | 別文脈 (read-only) | 1 観点で済む汎用レビューを別文脈で。大きな diff を main 文脈に流したくないとき |
 | **`/multi-review` command** | 別文脈 × 6 並列 | 6 専門 reviewer (correctness / security / tests / performance / readability / docs-adr) を並列起動して観点別に深く評価。PR レビューの基本形 |
-| **`/ultrareview` (builtin)** | Anthropic cloud | merge 直前の最終ゲート。独立検証込みで false positive を抑える (課金) |
 
 チェックリストは全手段で共通の優先度順 (下記)。違いは「どの文脈でどこまで深く / 何並列で見るか」のみ。
 
@@ -72,6 +71,4 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 
 - **観点別に深く見たい / フル PR レビュー** → `/multi-review` (6 専門 reviewer 並列)
 - **1 観点で済むが diff が大きい** → `code-reviewer` subagent (汎用 1-agent)
-- **merge 直前の最終ゲート** → `/ultrareview` builtin (独立検証込み、課金)
-
 メイン文脈に差分全文を読み込むとコンテキストを大きく消費するため、いずれも別文脈に委譲する判断を優先する。
