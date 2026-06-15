@@ -20,7 +20,7 @@ $ARGUMENTS は任意。次セッションで最初にやることを一言で渡
 1. 現在の git 状態を確認する (並列実行):
    - `git branch --show-current` / `git status --short` / `git log --oneline -5`
 2. 今セッションで何が確定・完了したかを整理する:
-   - 合意した設計判断、作成・更新したファイル (特に `tasks/todo.md` または task-specific な `tasks/<slug>-todo.md`)、未解決の論点
+   - 合意した設計判断、作成・更新したファイル (特に `tasks/<id>-todo.md` と `tasks/tasks.jsonl` の状態行)、未解決の論点
    - **会話文脈にしかない情報** (口頭合意・判断の根拠) を優先して拾う。コードや git log から再現できる事実は冗長に書かない
 3. 次にやることを特定する ($ARGUMENTS があればそれを起点に):
    - 次の最小作業単位、着手前の前提条件 (ブランチ作成など)
@@ -31,9 +31,10 @@ $ARGUMENTS は任意。次セッションで最初にやることを一言で渡
    - ブランチ / 直近 PR / 今どのフェーズか (1-3 行)
 
    ## 必読 (この順で読む)
-   1. tasks/todo.md または tasks/<slug>-todo.md — <該当セクション名>。計画と確定判断の真実の源
-   2. <関連 tasks/done/*.md や ADR、対象コードファイル>
-   3. AGENTS.md / CLAUDE.md / .claude/rules/git.md / .codex/rules/git.md — workflow ルール
+   1. tasks/tasks.jsonl — in-flight (status≠done) の一覧。現在状態の索引
+   2. tasks/<id>-todo.md — <該当セクション名>。計画と確定判断の真実の源
+   3. <関連 tasks/done/*.md や ADR、対象コードファイル>
+   4. AGENTS.md / CLAUDE.md / .claude/rules/git.md / .codex/rules/git.md — workflow ルール
 
    ## 今セッションで確定したこと (会話文脈にしかない要点)
    - <設計判断や口頭合意のうち、ファイルに書ききれていない or 背景が重要なもの>

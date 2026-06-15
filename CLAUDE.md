@@ -4,16 +4,21 @@ See: @AGENTS.md
 
 ## Workflow phases
 
-1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/todo.md` または task-specific な todo ファイルに残す。
+1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/{id}-todo.md` に残し、`tasks/tasks.jsonl` に状態行を追記する (`planned`/`in_progress`)。
 2. **Implement** — `tdd` skill に従い、失敗するテスト → 最小実装 → リファクタの順で進める。
 3. **Verify** — lint / typecheck / test を通す (`stop-check.sh` が強制)。
 4. **Commit** — `.claude/rules/git.md` に従う。PR レビュー対応は `/fix-review` コマンドを使う。
-5. **Archive** — 完了 / 凍結したタスクは `tasks/todo.md` から `tasks/done/{slug}.md` に移し、todo には in-flight の作業だけを残す。
+5. **Archive** — MERGED したら `tasks/tasks.jsonl` の当該行を `status:"done"` + `done` パスに更新し、`tasks/{id}-todo.md` の内容を `tasks/done/{id}.md` に移す。`id` は内容が一目で分かる slug。
 
 ## Task tracking
 
-- セッション開始時は `tasks/todo.md` と `tasks/done/` 内の最新タスクノートを読み、現在状態と直近の経緯を把握する。
-- `tasks/done/{slug}.md` は self-contained に保つ (概要 / ブランチ / コミット / PR / 検証結果)。
+> 正本のスキーマ・ライフサイクルは `.claude/rules/tasks.md`。以下は Claude 固有の運用補足。
+
+- セッション開始時はまず `tasks/tasks.jsonl` で in-flight (status≠done) を把握し、関連する `tasks/{id}-todo.md` と `tasks/done/` の最新ノートを読んで直近の経緯を掴む。
+- タスクごとに `tasks/{id}-todo.md` を持つ。特権的な単一 todo.md は廃止。
+- 状態が動いたら (ブランチ作成 / PR open / blocked / merged) registry の当該行を**id キーで upsert** する (`id` ごとに 1 行、重複追記しない)。worktree からは `bash scripts/sync-tasks.sh upsert <id> ...` で更新する。
+- `tasks/done/{id}.md` は self-contained に保つ (概要 / ブランチ / コミット / PR / 検証結果)。done 行は台帳として jsonl に残す。
+- `tasks/` は git 管理外。分岐元 1 本を正とし (全 worktree で共有)、共有は PR 本文経由で行う。
 
 ## Context management
 

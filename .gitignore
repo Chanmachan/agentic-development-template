@@ -34,6 +34,13 @@
 /config/master.key
 
 .idea
+.DS_Store
 
 # Claude Code personal-scope project notes (not shared with team)
 CLAUDE.local.md
+
+# Task tracking — local working state. Convention lives in .claude/rules/tasks.md.
+# /tasks (no trailing slash) ignores both the real dir in the main checkout and the
+# symlink that worktrees create pointing back to it (a trailing-slash pattern matches
+# directories only, so it would miss the symlink). See scripts/sync-local-docs.sh.
+/tasks
