@@ -6,12 +6,13 @@
 - Architecture decisions: `docs/adr/`
 
 ## Workflow
+- In a fresh worktree, run `bash scripts/sync-local-docs.sh` first: `tasks/` is git-ignored and does not come with the branch (see README "Worktree setup").
 - Do not start implementation before reading:
     - `docs/spec.md`
     - relevant ADRs in `docs/adr/`
 - Plan → approval → implement. Never start coding without a plan.
 - Implementation work goes on a feature branch (see `.claude/rules/git.md` / `.codex/rules/git.md`), never directly on `main`.
-- If `tasks/todo.md` is occupied by another in-flight task, use a task-specific todo file under `tasks/` instead.
+- Track every task per `.claude/rules/tasks.md` / `.codex/rules/tasks.md`: each task has its own per-task todo file (`tasks/{id}-todo.md`) and `tasks/tasks.jsonl` is the status registry. There is no privileged single todo.md.
 
 ## Quality gates
 - Run lint, typecheck, and tests before finishing.

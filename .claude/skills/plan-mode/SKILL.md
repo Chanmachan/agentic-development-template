@@ -1,6 +1,6 @@
 ---
 name: plan-mode
-description: Use before starting non-trivial implementation work — anything touching multiple files, introducing new abstractions, or with unclear requirements. Guides how to produce a written plan in tasks/todo.md and get user approval before coding. Trigger when the user asks to "plan", "design", "figure out how to", or when a request is ambiguous enough that jumping to code would be premature.
+description: Use before starting non-trivial implementation work — anything touching multiple files, introducing new abstractions, or with unclear requirements. Guides how to produce a written plan in tasks/<id>-todo.md (per-task file) and get user approval before coding. Trigger when the user asks to "plan", "design", "figure out how to", or when a request is ambiguous enough that jumping to code would be premature.
 ---
 
 # Plan Mode Skill
@@ -26,9 +26,9 @@ description: Use before starting non-trivial implementation work — anything to
 - 既存コードの該当箇所 (調査が広範なら `investigator` / `planner` subagent に委譲)
 - ユーザの要求文 (曖昧な部分は質問するか、合理的判断で進めて transparent に伝える)
 
-### 2. tasks/todo.md に書く
+### 2. tasks/<id>-todo.md に書く
 
-成果物は **`tasks/todo.md`** (リポジトリ規約)。以下の構造で書く:
+成果物は **`tasks/<id>-todo.md`** (リポジトリ規約: タスクごとに 1 ファイル、`id` は内容が分かる kebab-case slug)。承認後に `tasks/tasks.jsonl` へ状態行を追記する (スキーマ・ライフサイクルは `.claude/rules/tasks.md`)。以下の構造で書く:
 
 ```markdown
 # <タスク名>
@@ -55,9 +55,9 @@ description: Use before starting non-trivial implementation work — anything to
 
 ### 3. 承認を得る
 
-- `tasks/todo.md` をユーザに提示し、**実装に入る前に明示的な OK を得る**
+- `tasks/<id>-todo.md` をユーザに提示し、**実装に入る前に明示的な OK を得る**
 - ユーザが「進めて」と言うまで Edit / Write を実行しない (Plan Mode の本旨)
-- 計画への指摘があれば `tasks/todo.md` を更新して再承認
+- 計画への指摘があれば `tasks/<id>-todo.md` を更新して再承認
 
 ### 4. 実装前に feature ブランチを切る
 
@@ -65,8 +65,8 @@ description: Use before starting non-trivial implementation work — anything to
 
 ### 5. 実装中の計画更新
 
-- 計画と実態が乖離したら、コードを書く前に `tasks/todo.md` を更新する
-- 「メモリに保存」ではなく `tasks/todo.md` を更新するのが原則 (現在の会話のスコープなので)
+- 計画と実態が乖離したら、コードを書く前に `tasks/<id>-todo.md` を更新する
+- 「メモリに保存」ではなく `tasks/<id>-todo.md` を更新するのが原則 (現在の会話のスコープなので)
 
 ## Delegating to planner subagent
 
@@ -75,6 +75,6 @@ description: Use before starting non-trivial implementation work — anything to
 ## Anti-patterns
 
 - 計画なしで非自明な変更を始める
-- `tasks/todo.md` に書かず、会話文脈にだけ計画を残す (`/clear` で消える、Plan と Implement の境界が曖昧になり承認の所在も失われる)
+- `tasks/<id>-todo.md` に書かず、会話文脈にだけ計画を残す (`/clear` で消える、Plan と Implement の境界が曖昧になり承認の所在も失われる)
 - 承認なしに Edit を実行する
 - 計画と実装の乖離を放置する
