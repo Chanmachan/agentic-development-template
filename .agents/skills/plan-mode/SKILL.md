@@ -1,6 +1,6 @@
 ---
 name: plan-mode
-description: Use before starting non-trivial implementation work — anything touching multiple files, introducing new abstractions, or with unclear requirements. Guides how to produce a written plan in tasks/todo.md or a task-specific todo file and get user approval before coding. Trigger when the user asks to "plan", "design", "figure out how to", or when a request is ambiguous enough that jumping to code would be premature.
+description: Use before starting non-trivial implementation work — anything touching multiple files, introducing new abstractions, or with unclear requirements. Guides how to produce a written plan in tasks/<id>-todo.md (per-task file) and get user approval before coding. Trigger when the user asks to "plan", "design", "figure out how to", or when a request is ambiguous enough that jumping to code would be premature.
 ---
 
 # Plan Mode Skill
@@ -26,9 +26,9 @@ description: Use before starting non-trivial implementation work — anything to
 - 既存コードの該当箇所 (調査が広範なら `investigator` / `planner` subagent に委譲)
 - ユーザの要求文 (曖昧な部分は質問するか、合理的判断で進めて transparent に伝える)
 
-### 2. todo ファイルに書く
+### 2. tasks/<id>-todo.md に書く
 
-成果物は原則 **`tasks/todo.md`** (リポジトリ規約)。ただし既に他作業で使用中の場合は、ユーザに確認したうえで **`tasks/<slug>-todo.md`** のような task-specific ファイルに隔離する。以下の構造で書く:
+成果物は **`tasks/<id>-todo.md`** (リポジトリ規約: タスクごとに 1 ファイル、`id` は内容が分かる kebab-case slug。特権的な単一 todo.md は廃止)。承認後に `tasks/tasks.jsonl` へ状態行を追記する (スキーマ・ライフサイクルは `.codex/rules/tasks.md`)。以下の構造で書く:
 
 ```markdown
 # <タスク名>

@@ -137,13 +137,15 @@ codex    # Codex
 ├── idea/                  # Raw ideas and brainstorming (keep it messy)
 ├── research/              # Research notes (no design decisions here)
 │
-├── tasks/
-│   ├── todo.md            # Current tasks and progress
-│   └── done/              # Completed/frozen task notes
-│   └── tasks.jsonl        # Task list for automated development runs
+├── tasks/                 # (gitignored) Local task tracking — convention: .claude/rules/tasks.md
+│   ├── tasks.jsonl        # Status registry (one line per task)
+│   ├── <id>-todo.md       # Per-task plan/checklist
+│   └── done/<id>.md       # Archived task records (once merged)
 │
 ├── scripts/
-│   └── check-doc-health.sh  # Checks AGENTS.md line count & ADR freshness
+│   ├── check-doc-health.sh  # Checks AGENTS.md line count & ADR freshness
+│   ├── sync-tasks.sh        # Read/upsert the tasks.jsonl registry (locked, atomic)
+│   └── sync-local-docs.sh   # Worktree setup: symlink tasks/ + copy gitignored docs
 │
 ├── src/                   # Source code (structure per your language/framework)
 └── tests/                 # Test code
@@ -236,6 +238,34 @@ See ADR 0004 for the design rationale.
 
 ---
 
+## Task Tracking
+
+`tasks/` is **git-ignored local working state** (like `tmp/` and `log/`), not shipped to teammates — share via the PR body. The convention itself lives in committed docs, so it travels with every clone:
+
+- `.claude/rules/tasks.md` / `.codex/rules/tasks.md` — canonical schema and lifecycle.
+- Each task gets its own `tasks/<id>-todo.md` plan file; `tasks/tasks.jsonl` is the status registry (one line per task, upserted by `id`). There is no privileged single `todo.md`.
+
+Update a registry line safely (locked, atomic write) with the helper:
+
+```bash
+bash scripts/sync-tasks.sh list                          # show all tasks
+bash scripts/sync-tasks.sh get <id>                      # show one task
+bash scripts/sync-tasks.sh upsert <id> status=in_progress branch=feature/x pr=12
+```
+
+### Worktree setup
+
+`tasks/` is **single-sourced in the main checkout (分岐元)**. Because it is git-ignored, a fresh `git worktree` starts without it. Run this once in a new worktree:
+
+```bash
+bash scripts/sync-local-docs.sh            # symlink tasks/ to the main checkout (+ copy any gitignored docs)
+bash scripts/sync-local-docs.sh --dry-run  # preview without changing anything
+```
+
+It auto-detects the main checkout via `git rev-parse --git-common-dir`, no-ops when run from the main checkout itself, and symlinks the worktree's `tasks/` to the shared one. So every worktree reads/writes one `tasks/tasks.jsonl` registry, todo files, and `tasks/done/` — all worktrees' work is visible in one place, and nothing is lost when a worktree is deleted (no copy-back step). Use `bash scripts/sync-tasks.sh upsert <id> ...` to update the shared registry safely, and give non-main-track task ids a namespace prefix (e.g. `principal-<slug>`) so the shared registry has no id collisions. If your project also git-ignores some docs (spec, business notes), list them in the `PATHS` array of `sync-local-docs.sh` to have them copied in too.
+
+---
+
 ## Checklist: What to Edit When Starting a New Project
 
 Files you **must** edit:
@@ -245,7 +275,7 @@ Files you **must** edit:
 - [ ] `docs/adr/000*-*.md` — Record your tech stack decisions
 - [ ] `lefthook.yml` — Uncomment the lint command for your language
 - [ ] `.claude/hooks/post-lint.sh` / `.codex/hooks/post-lint.sh` — Uncomment the block for your language
-- [ ] `tasks/todo.md` or `tasks/<slug>-todo.md` — Add your first tasks
+- [ ] `tasks/<id>-todo.md` + `tasks/tasks.jsonl` — Add your first task (see `.claude/rules/tasks.md`)
 - [ ] `AGENTS.md` — Add project-specific rules if needed (keep under 50 lines)
 
 Files you should **not** change (they are the guardrails themselves):
@@ -265,7 +295,7 @@ Files you should **not** change (they are the guardrails themselves):
 2. Research and explore in research/
 3. Consolidate into docs/spec.md  ← use the `spec-interview` skill to drive this interactively
 4. Record decisions in docs/adr/
-5. Break work into `tasks/todo.md` or `tasks/<slug>-todo.md`  ← use the `plan-mode` skill
+5. Break work into `tasks/<id>-todo.md` + a `tasks/tasks.jsonl` line  ← use the `plan-mode` skill
 6. Run `claude` or `codex` and start building (TDD via the `tdd` skill)
 ```
 

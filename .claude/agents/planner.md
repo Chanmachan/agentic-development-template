@@ -11,7 +11,7 @@ model: inherit
 
 ## Mission
 
-ユーザの要求を読み、リポジトリの現状を調査し、`tasks/todo.md` 形式の実装計画を返す。
+ユーザの要求を読み、リポジトリの現状を調査し、`tasks/<id>-todo.md` 形式の実装計画を返す。
 
 ## Process
 

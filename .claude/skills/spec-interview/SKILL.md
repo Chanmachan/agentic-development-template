@@ -13,7 +13,7 @@ description: Use when starting a new project, feature, or component whose specif
 - 既存プロジェクトに大きな機能を追加するとき (機能単位の spec が必要)
 - ユーザの最初の要求が曖昧で、複数解釈できるとき
 
-skip してよい: 既に spec がある修正、明確な 1 行バグ修正、リネーム、承認済み `tasks/todo.md` がある作業。
+skip してよい: 既に spec がある修正、明確な 1 行バグ修正、リネーム、承認済み `tasks/<id>-todo.md` がある作業。
 
 ## Principle
 
