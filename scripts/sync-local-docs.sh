@@ -58,24 +58,28 @@ echo ""
 PATHS=(
 )
 
-copied=0
-for p in "${PATHS[@]}"; do
-  if [ ! -e "$SRC/$p" ]; then
-    continue  # 分岐元に無いものはスキップ
-  fi
-  echo "  + $p"
-  if [ "$DRY_RUN" -eq 0 ]; then
-    mkdir -p "$DST/$(dirname "$p")"
-    if [ -d "$SRC/$p" ]; then
-      cp -R "$SRC/$p/." "$DST/$p/"
-    else
-      cp "$SRC/$p" "$DST/$p"
+# 件数は「同期対象として選ばれた数」(dry-run では実コピーしないが選択数を表示)。
+matched=0
+# 空配列 + `set -u` は bash 3.2 (macOS 既定) で "unbound variable" となり worktree で
+# 即クラッシュするため、要素がある場合のみループする。
+if [ ${#PATHS[@]} -gt 0 ]; then
+  for p in "${PATHS[@]}"; do
+    if [ ! -e "$SRC/$p" ]; then
+      continue  # 分岐元に無いものはスキップ
     fi
-  fi
-  copied=$((copied + 1))
-done
-
-[ ${#PATHS[@]} -gt 0 ] && echo ""
+    echo "  + $p"
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mkdir -p "$DST/$(dirname "$p")"
+      if [ -d "$SRC/$p" ]; then
+        cp -R "$SRC/$p/." "$DST/$p/"
+      else
+        cp "$SRC/$p" "$DST/$p"
+      fi
+    fi
+    matched=$((matched + 1))
+  done
+  echo ""
+fi
 
 # tasks/ を分岐元への symlink にする（分岐元 1 本を正とする集中運用）。
 echo "tasks/ symlink:"
@@ -98,11 +102,11 @@ fi
 
 echo ""
 if [ "$DRY_RUN" -eq 1 ]; then
-  echo "[dry-run] 上記 $copied 項目のコピーと tasks symlink を実行します（実行はしていません）。"
+  echo "[dry-run] 上記 $matched 項目のコピーと tasks symlink を実行します（実行はしていません）。"
   exit 0
 fi
 
-echo "$copied 項目を同期し、tasks/ symlink を設定しました。"
+echo "$matched 項目を同期し、tasks/ symlink を設定しました。"
 
 # 安全確認: コピー同期したパス配下に git-ignore されていないファイルが無いか検出する。
 # このスクリプトは「ignore 済み docs だけを持ち込む」前提なので、ここで何か出たら

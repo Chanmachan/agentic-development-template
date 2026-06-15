@@ -54,7 +54,13 @@ case "$CMD" in
 import sys, json
 reg, tid = sys.argv[1], sys.argv[2]
 for line in open(reg, encoding="utf-8"):
-    if line.strip() and json.loads(line).get("id") == tid:
+    if not line.strip():
+        continue
+    try:
+        o = json.loads(line)
+    except json.JSONDecodeError:
+        continue  # 壊れた行は read 系では黙ってスキップ
+    if o.get("id") == tid:
         print(line.rstrip())
         break
 PY
@@ -99,8 +105,12 @@ fields.setdefault("updated", datetime.date.today().isoformat())
 
 SCHEMA = ["id", "title", "status", "branch", "pr", "todo", "done", "updated", "note"]
 
+# SCHEMA 順にフィールドを並べ、スキーマ外のキーは後ろに付ける。
+# dict-union (a | b) は Python 3.9+ 限定のため {**a, **b} で広い環境に対応。
 def ordered(o):
-    return {k: o.get(k) for k in SCHEMA} | {k: v for k, v in o.items() if k not in SCHEMA}
+    head = {k: o.get(k) for k in SCHEMA}
+    tail = {k: v for k, v in o.items() if k not in SCHEMA}
+    return {**head, **tail}
 
 # 並列トラック (別 worktree) の同時 upsert によるロスト更新を防ぐため、read-modify-write
 # 全体を排他ロックで直列化する。ロックは専用 .lock ファイル (registry は os.replace で
@@ -113,7 +123,14 @@ with open(lock_path, "w") as lock:
         for line in open(reg, encoding="utf-8"):
             if not line.strip():
                 continue
-            o = json.loads(line)
+            try:
+                o = json.loads(line)
+            except json.JSONDecodeError:
+                # 壊れた 1 行で全 upsert が止まるのを防ぐ。行はそのまま残す
+                # (手で直せるよう破棄しない) が、警告だけ出す。
+                sys.stderr.write("warning: skipping malformed registry line: " + line.rstrip() + "\n")
+                rows.append(("__raw__", line.rstrip("\n")))
+                continue
             if o.get("id") == tid:
                 o.update(fields)
                 o = ordered(o)
@@ -126,10 +143,14 @@ with open(lock_path, "w") as lock:
     tmp = reg + "." + str(os.getpid()) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         for o in rows:
-            f.write(json.dumps(o, ensure_ascii=False) + "\n")
+            if isinstance(o, tuple) and o[0] == "__raw__":
+                f.write(o[1] + "\n")  # 壊れた行は原文のまま保持
+            else:
+                f.write(json.dumps(o, ensure_ascii=False) + "\n")
     os.replace(tmp, reg)
 
-print("upsert " + tid + ": " + json.dumps(next(o for o in rows if o.get("id") == tid), ensure_ascii=False))
+upserted = next(o for o in rows if isinstance(o, dict) and o.get("id") == tid)
+print("upsert " + tid + ": " + json.dumps(upserted, ensure_ascii=False))
 PY
     ;;
 
