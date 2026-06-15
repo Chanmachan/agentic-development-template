@@ -62,12 +62,13 @@ assert_no_match '"pr": "12"' "$got"   # not a string
 assert_match '"branch": "12345"' "$got"
 assert_match '"todo": "007"' "$got"   # leading zero intact
 
-# 4. null / bool coercion
+# 4. null / bool coercion + auto-`updated` default
 bash "$SCRIPT" upsert t3 note=null status= done=true >/dev/null
 got="$(bash "$SCRIPT" get t3)"
 assert_match '"note": null' "$got"
 assert_match '"status": null' "$got"  # empty string -> null
 assert_match '"done": true' "$got"    # bool
+assert_match '"updated": "20' "$got"  # updated auto-set to today's YYYY-...
 
 # 5. malformed line is skipped (not fatal) and preserved verbatim
 printf '%s\n' '{ this is not json' >>"$REG"
@@ -76,6 +77,14 @@ out="$(bash "$SCRIPT" upsert t4 status=planned 2>&1)"; rc=$?
 assert_match "warning: skipping malformed registry line" "$out"
 assert_match '{ this is not json' "$(cat "$REG")"   # bad line kept for manual repair
 assert_match '"id": "t4"' "$(cat "$REG")"           # new task still written
+
+# 6. cross-id non-interference: after all the upserts above, t1 is still a single
+#    line and the other ids coexist (no id collisions / accidental overwrites).
+c1="$(grep -c '"id": "t1"' "$REG")"
+[ "$c1" -eq 1 ] || { echo "FAIL: expected 1 line for t1 after all upserts, got $c1"; fail=1; }
+for id in t1 t2 t3 t4; do
+  [ "$(grep -c "\"id\": \"$id\"" "$REG")" -eq 1 ] || { echo "FAIL: $id not present exactly once"; fail=1; }
+done
 
 if [ "$fail" -ne 0 ]; then
   echo "---"
