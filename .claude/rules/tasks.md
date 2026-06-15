@@ -7,7 +7,6 @@
 - **`tasks/tasks.jsonl` — status registry.** One JSON object per line, one per task. The single, global index of "what tasks exist and their state" — canonical in the **main checkout** (see Worktrees). Read it at session start to see in-flight work, then open the relevant `tasks/<id>-todo.md` + recent `tasks/done/*.md` for detail.
 - **`tasks/<id>-todo.md` — per-task detail.** Each task has its own file holding the plan/checklist (use `- [ ]` checkboxes). There is no privileged single `todo.md`.
 - **`tasks/done/<id>.md` — archive.** Self-contained record once MERGED (概要 / branch / commits / PR / 検証結果 が単体で読める).
-- **`tasks/backlog.md` — out-of-scope gaps**, running checklist (unchanged by this convention).
 
 ## tasks.jsonl line schema
 
