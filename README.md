@@ -147,7 +147,7 @@ codex    # Codex
 │   ├── sync-tasks.sh        # Read/upsert the tasks.jsonl registry (locked, atomic)
 │   └── sync-local-docs.sh   # Worktree setup: symlink tasks/ + copy gitignored docs
 │
-├── src/                   # Source code (structure per your language/framework)
+├── src/                   # Your application code — add this once you start building
 └── tests/                 # Test code
 ```
 
