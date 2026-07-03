@@ -30,10 +30,10 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
    共有ライブラリ化リファクタは別 PR の論点とする。
 
 3. **`HOOK_PROFILE` の profile 帰属は ADR 0003 を土台に、Cursor 固有の保護フックを足す**。Cursor の
-   `standard` は **5 フック** = post-lint, protect-config, **protect-read, protect-shell**, stop-check
-   (protect-read/protect-shell は protect-config の兄弟ガードとして追加)。minimal=post-lint のみ。
-   strict 専用フック (ADR 0003 の `suggest-compact`) は Cursor へ未移植のため、本ハーネスの `strict` は
-   実質 `standard` と同じ 5 フックになる。
+   `standard` は **6 フック** = post-lint, protect-config, **protect-read, protect-shell**, stop-check,
+   **enforce-model** (protect-read/protect-shell は protect-config の兄弟ガード、enforce-model はモデル強制)。
+   minimal=post-lint のみ。strict 専用フック (ADR 0003 の `suggest-compact`) は Cursor へ未移植のため、
+   本ハーネスの `strict` は実質 `standard` と同じ 6 フックになる。
 
 4. **Cursor の実イベントに合わせてアダプタを配線する**。Cursor の hook は6種
    (`beforeShellExecution`/`beforeMCPExecution`/`beforeReadFile`/`beforeSubmitPrompt` が制御可、
@@ -50,6 +50,21 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
    のみ許可・配列値の全要素検査を加える。書込拒否は config 全般+秘密(`is_protected_path`)、読取/シェル
    拒否は秘密のみ(`is_secret_path`、tsconfig 等の読取は許可)。`.claude` / `.codex` の inline 版への同等
    バックポートは別 PR とする。
+
+6. **モデルを Composer 2.5 に固定し `beforeSubmitPrompt` で強制する**。理由:
+   - Cursor Pro の「Auto + Composer」包括プール内であれば Composer を使っても追加費用は無い。Auto は
+     世代ごとにサードパーティモデルに振られる可能性があり、その場合は API クレジットを消費する。
+   - 実装担当として速度・コストのトレードオフを最適化するには、Composer 2.5 (standard tier) を固定が
+     最も合理的(fast tier は 1 トークン当たりのプール消費が大きい)。
+   - `beforeSubmitPrompt` ペイロードはすべての hook イベントに `model` フィールドを含む
+     (cursor.com/docs/agent/hooks 2026-07-03 確認)ため、プロンプト送信直前でモデルを検査できる。
+   - IDE のモデルピッカーはモード切替のたびに Auto にリセットされるため、設定での固定は不完全。
+     フックによるチェックが唯一の強制手段。
+   - **ポリシー**: `model` スラグが `CURSOR_REQUIRED_MODEL_PREFIX`(既定 `composer`) から始まらなければ
+     deny、始まれば allow。prefix が空文字列の場合はすべて allow(強制無効化)。`model` フィールドが
+     ペイロードに存在しない場合は fail-open(allow)し、`hook_debug` でログに記録する。
+   - 推奨起動: `cursor-agent --model composer-2.5`(standard tier)。`-fast` は同プールの消費が速い
+     ため通常は standard を優先する。
 
 ## Consequences
 

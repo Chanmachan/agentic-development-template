@@ -25,6 +25,8 @@ PM・計画・レビュー対応・merge・archive は Claude/Codex 側に残る
 
 ## やらないこと(ガードレール)
 
+- **モデルを切り替えない**。Composer 2.5 (standard tier) を使う。Auto やサードパーティモデルへの
+  切り替えは `enforce-model` フックが拒否する。CLI 起動は `cursor-agent --model composer-2.5`。
 - `.env*` / lockfile / lint・type・test の設定ファイルを編集しない(フックが拒否する。
   設定を緩めてエラーを消すのも禁止)。秘密ファイルは読まない。
 - 計画なしで複数ファイルにまたがる変更を始めない。テスト無しで振る舞いを変えない。
