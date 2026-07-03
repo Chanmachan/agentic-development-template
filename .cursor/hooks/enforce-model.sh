@@ -30,7 +30,13 @@ INPUT="$(cat)"
 hook_debug beforeSubmitPrompt "$INPUT"
 
 # Allow-all fast path: empty prefix disables enforcement.
-REQUIRED_PREFIX="${CURSOR_REQUIRED_MODEL_PREFIX:-composer}"
+# Use ${VAR+x} to distinguish "explicitly set to empty" from "not set at all";
+# :-composer would treat both the same and reinstate the default on empty-string.
+if [ -n "${CURSOR_REQUIRED_MODEL_PREFIX+x}" ]; then
+  REQUIRED_PREFIX="$CURSOR_REQUIRED_MODEL_PREFIX"
+else
+  REQUIRED_PREFIX="composer"
+fi
 if [ -z "$REQUIRED_PREFIX" ]; then
   exit 0
 fi

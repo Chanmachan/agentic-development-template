@@ -147,6 +147,50 @@ run_stop "$PASSDIR" '{"loop_count":0}'
 rm -rf "$PASSDIR"
 
 # ---------------------------------------------------------------------------
+# enforce-model.sh — beforeSubmitPrompt: deny non-Composer models, allow Composer
+# ---------------------------------------------------------------------------
+echo "enforce-model.sh (model gate)"
+
+# deny: gpt-5.5 (third-party slug)
+run_hook enforce-model.sh '{"model":"gpt-5.5"}'
+{ [ "$RC" -eq 0 ] && is_deny; } && ok "deny: gpt-5.5 (non-composer)" || bad "gpt-5.5 should deny (rc=$RC out=$OUT)"
+
+# allow: composer-2.5
+run_hook enforce-model.sh '{"model":"composer-2.5"}'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "allow: composer-2.5" || bad "composer-2.5 should allow (rc=$RC out=$OUT)"
+
+# allow: composer-2.5-fast
+run_hook enforce-model.sh '{"model":"composer-2.5-fast"}'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "allow: composer-2.5-fast" || bad "composer-2.5-fast should allow (rc=$RC out=$OUT)"
+
+# allow: Composer-2.5 (case-insensitive)
+run_hook enforce-model.sh '{"model":"Composer-2.5"}'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "allow: Composer-2.5 (case-insensitive)" || bad "Composer-2.5 should allow (rc=$RC out=$OUT)"
+
+# fail-open: no model field in payload
+run_hook enforce-model.sh '{"hook_event_name":"beforeSubmitPrompt"}'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "fail-open: missing model field allows" || bad "missing model should allow (rc=$RC out=$OUT)"
+
+# CURSOR_REQUIRED_MODEL_PREFIX=claude: allows claude slug, denies composer
+run_hook_env() { # $1=script $2=json $3=env-pair -> $RC, $OUT
+  OUT="$(printf '%s' "$2" | env "$3" bash "$HOOKS_DIR/$1" 2>/dev/null)"
+  RC=$?
+}
+run_hook_env enforce-model.sh '{"model":"claude-sonnet-4"}' "CURSOR_REQUIRED_MODEL_PREFIX=claude"
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "CURSOR_REQUIRED_MODEL_PREFIX=claude allows claude slug" || bad "claude slug should allow with prefix=claude (rc=$RC out=$OUT)"
+run_hook_env enforce-model.sh '{"model":"composer-2.5"}' "CURSOR_REQUIRED_MODEL_PREFIX=claude"
+{ [ "$RC" -eq 0 ] && is_deny; } && ok "CURSOR_REQUIRED_MODEL_PREFIX=claude denies composer slug" || bad "composer should deny with prefix=claude (rc=$RC out=$OUT)"
+
+# empty CURSOR_REQUIRED_MODEL_PREFIX: allows everything
+run_hook_env enforce-model.sh '{"model":"gpt-5.5"}' "CURSOR_REQUIRED_MODEL_PREFIX="
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "empty CURSOR_REQUIRED_MODEL_PREFIX allows all models" || bad "empty prefix should allow all (rc=$RC out=$OUT)"
+
+# HOOK_PROFILE=minimal: hook is skipped (allow non-composer)
+OUT="$(printf '{"model":"gpt-5.5"}' | HOOK_PROFILE=minimal bash "$HOOKS_DIR/enforce-model.sh" 2>/dev/null)"
+RC=$?
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "HOOK_PROFILE=minimal skips hook (allows non-composer)" || bad "minimal profile should skip enforce-model (rc=$RC out=$OUT)"
+
+# ---------------------------------------------------------------------------
 # lib: CURSOR_HOOK_DEBUG capture + off-by-default
 # ---------------------------------------------------------------------------
 echo "lib (debug capture)"
