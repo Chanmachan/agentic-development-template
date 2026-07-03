@@ -1,6 +1,11 @@
 {
   "version": 1,
   "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "bash .cursor/hooks/enforce-model.sh"
+      }
+    ],
     "preToolUse": [
       {
         "matcher": "Write",
