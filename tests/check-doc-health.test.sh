@@ -9,8 +9,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOK="$REPO_ROOT/scripts/check-doc-health.sh"
 
+CLEANUP_DIRS=""
+cleanup() { rm -rf $CLEANUP_DIRS; }
+trap cleanup EXIT
+
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP"
 
 cat >"$TMP/AGENTS.md" <<'EOF'
 # Fixture
@@ -69,7 +73,7 @@ echo "OK: doc-health pointer check filters slash commands / brace / shell snippe
 # Set up a fixture docs/adr/ with ADRs at known ages.
 
 TMP2="$(mktemp -d)"
-trap 'rm -rf "$TMP2"' EXIT
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP2"
 
 mkdir -p "$TMP2/docs/adr"
 
@@ -152,7 +156,7 @@ echo "OK: env-override thresholds DOC_HEALTH_WARN_DAYS=8 DOC_HEALTH_ERROR_DAYS=1
 
 # ── Section 3: 0000-prefixed ADRs excluded from staleness check ───────────────
 TMP3="$(mktemp -d)"
-trap 'rm -rf "$TMP3"' EXIT
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP3"
 
 mkdir -p "$TMP3/docs/adr"
 
