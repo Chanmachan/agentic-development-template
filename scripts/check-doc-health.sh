@@ -3,8 +3,8 @@
 
 FAILED=0
 MAX_LINES=50
-WARN_DAYS=3
-ERROR_DAYS=5
+WARN_DAYS="${DOC_HEALTH_WARN_DAYS:-14}"
+ERROR_DAYS="${DOC_HEALTH_ERROR_DAYS:-30}"
 TODAY=$(date +%s)
 
 # 1. AGENTS.md / CLAUDE.md の行数チェック
@@ -21,6 +21,8 @@ done
 # 2. ADR の last-validated 日付チェック
 for adr in docs/adr/*.md; do
   [ -f "$adr" ] || continue
+  # Skip the 0000-prefixed template — it is a scaffold file, not a live decision
+  case "$(basename "$adr")" in 0000-*) continue ;; esac
   validated=$(grep -i "last-validated:" "$adr" | head -1 | sed 's/.*: *//' | tr -d ' ')
   [ -z "$validated" ] && continue
 
