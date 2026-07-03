@@ -31,4 +31,5 @@
 - Claude hooks/skills/subagents/rules: `.claude/`
 - Codex hooks/agents/rules: `.codex/`
 - Codex skills: `.agents/skills/`
+- Cursor implementer harness: `.cursor/`
 - session contexts: `contexts/`
