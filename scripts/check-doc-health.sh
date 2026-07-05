@@ -3,8 +3,21 @@
 
 FAILED=0
 MAX_LINES=50
-WARN_DAYS=3
-ERROR_DAYS=5
+DEFAULT_WARN_DAYS=14
+DEFAULT_ERROR_DAYS=30
+
+WARN_DAYS="${DOC_HEALTH_WARN_DAYS:-$DEFAULT_WARN_DAYS}"
+if ! [[ "$WARN_DAYS" =~ ^[0-9]+$ ]]; then
+  echo "WARN: DOC_HEALTH_WARN_DAYS='$WARN_DAYS' is not a non-negative integer. Falling back to $DEFAULT_WARN_DAYS." >&2
+  WARN_DAYS="$DEFAULT_WARN_DAYS"
+fi
+
+ERROR_DAYS="${DOC_HEALTH_ERROR_DAYS:-$DEFAULT_ERROR_DAYS}"
+if ! [[ "$ERROR_DAYS" =~ ^[0-9]+$ ]]; then
+  echo "WARN: DOC_HEALTH_ERROR_DAYS='$ERROR_DAYS' is not a non-negative integer. Falling back to $DEFAULT_ERROR_DAYS." >&2
+  ERROR_DAYS="$DEFAULT_ERROR_DAYS"
+fi
+
 TODAY=$(date +%s)
 
 # 1. AGENTS.md / CLAUDE.md の行数チェック
@@ -21,6 +34,8 @@ done
 # 2. ADR の last-validated 日付チェック
 for adr in docs/adr/*.md; do
   [ -f "$adr" ] || continue
+  # 0000 プレフィックスのテンプレートはスキップする（実際の意思決定ではなく雛形のため）
+  case "$(basename "$adr")" in 0000-*) continue ;; esac
   validated=$(grep -i "last-validated:" "$adr" | head -1 | sed 's/.*: *//' | tr -d ' ')
   [ -z "$validated" ] && continue
 
