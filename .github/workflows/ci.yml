@@ -12,12 +12,25 @@ on:
   push:
     branches: [main]
 
+# Least privilege: these jobs only read the checked-out repo and run local
+# scripts against it, so no write scopes (contents, PRs, checks, etc.) are
+# needed. PR-branch code (including test fixtures) runs as arbitrary bash
+# here, so keep the token as narrow as possible.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same branch/PR so pushes don't queue up
+# redundant CI runs against stale commits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   doc-health:
     name: Doc Health
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Check AGENTS.md/CLAUDE.md pointers and ADR freshness
         run: bash scripts/check-doc-health.sh
 
@@ -25,11 +38,17 @@ jobs:
     name: Bash Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Run tests/*.test.sh
         run: |
           set -euo pipefail
-          for f in tests/*.test.sh; do
+          shopt -s nullglob
+          files=(tests/*.test.sh)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No tests/*.test.sh files found — skipping (this is a template; an empty tests/ directory is expected until fixtures are added)."
+            exit 0
+          fi
+          for f in "${files[@]}"; do
             echo "::group::$f"
             bash "$f"
             echo "::endgroup::"
@@ -53,7 +72,7 @@ jobs:
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Run shellcheck (error-level gate)
         run: |
           set -euo pipefail
