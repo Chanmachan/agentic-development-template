@@ -30,7 +30,7 @@ run_hook() { # $1=script $2=json -> $RC, $OUT
   OUT="$(printf '%s' "$2" | bash "$HOOKS_DIR/$1" 2>/dev/null)"
   RC=$?
 }
-is_deny() { echo "$OUT" | grep -q '"permission"' && echo "$OUT" | grep -q '"deny"'; }
+is_deny() { echo "$OUT" | grep -qE '"permission": *"deny"'; }
 
 # ---------------------------------------------------------------------------
 # protect-config.sh — preToolUse(Write): deny edits to protected/secret files
@@ -49,10 +49,18 @@ run_hook protect-config.sh '{"tool_input":{"file_path":["/repo/src/ok.ts","/repo
 is_deny && ok "array write with .env element denied" || bad "array .env should deny, out=$OUT"
 run_hook protect-config.sh '{"file_path":"/repo/.env"}'
 is_deny && ok "top-level file_path fallback denied" || bad "top-level .env should deny, out=$OUT"
+run_hook protect-config.sh '{"path":"/repo/.env"}'
+is_deny && ok "top-level path fallback denied" || bad "top-level path .env should deny, out=$OUT"
+run_hook protect-config.sh '{"tool_input":{"target_file":"/repo/.env"}}'
+is_deny && ok "tool_input.target_file fallback denied" || bad "tool_input.target_file .env should deny, out=$OUT"
+run_hook protect-config.sh '{"tool_input":{"file_path":"/repo/.env "}}'
+is_deny && ok "trailing-space .env still denied (normalization)" || bad "trailing-space .env should deny, out=$OUT"
 run_hook protect-config.sh 'not json'
 { [ "$RC" -eq 0 ] && ! is_deny; } && ok "malformed stdin fails open (allow)" || bad "malformed should allow, rc=$RC out=$OUT"
 run_hook protect-config.sh '{"tool_input":{"file_path":""}}'
 { [ "$RC" -eq 0 ] && ! is_deny; } && ok "empty path allows (exit 0)" || bad "empty path should allow, rc=$RC out=$OUT"
+run_hook protect-config.sh '{"tool_input":{"file_path":"/repo/.env"}}'
+echo "$OUT" | grep -q 'protected config/secret file' && ok "deny message content mentions protected file reason" || bad "deny message should mention reason, out=$OUT"
 
 # ---------------------------------------------------------------------------
 # protect-read.sh — beforeReadFile: deny reading secrets, allow ordinary config
@@ -60,7 +68,7 @@ run_hook protect-config.sh '{"tool_input":{"file_path":""}}'
 echo "protect-read.sh (secret read block)"
 for p in "/repo/.env" "/repo/.env.production" "/repo/.ENV" "/repo/.env.example.local" \
          "/repo/certs/server.pem" "/repo/auth/key.p8" "/repo/id_rsa" "/repo/.npmrc" \
-         "/home/u/.aws/credentials"; do
+         "/home/u/.aws/credentials" ".aws/credentials" ".ssh/id_dsa"; do
   run_hook protect-read.sh '{"file_path":"'"$p"'"}'
   is_deny && ok "deny read $p" || bad "read $p should deny, rc=$RC out=$OUT"
 done
@@ -91,6 +99,8 @@ deny|cat id_rsa
 deny|cat certs/server.pem
 deny|cat auth/key.p8
 deny|cat ~/.aws/credentials
+deny|cat .aws/credentials
+deny|cat .ssh/id_dsa
 allow|ls -la apps/web
 allow|cat .env.example
 allow|cat README.md
@@ -98,22 +108,37 @@ allow|grep TODO .environment-notes
 allow|git commit -m "add credentials handling"
 CASES
 
+run_hook protect-shell.sh '{"command":""}'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "empty command allows" || bad "empty command should allow, rc=$RC out=$OUT"
+run_hook protect-shell.sh '{}'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "missing command allows" || bad "missing command should allow, rc=$RC out=$OUT"
+run_hook protect-shell.sh 'not json'
+{ [ "$RC" -eq 0 ] && ! is_deny; } && ok "malformed stdin fails open (allow)" || bad "malformed stdin should allow, rc=$RC out=$OUT"
+
 # ---------------------------------------------------------------------------
 # post-lint.sh — afterFileEdit: format edited TS/JS, no-op for others
 # ---------------------------------------------------------------------------
 echo "post-lint.sh"
-FAKEBIN="$(mktemp -d)"; SENTINEL="$FAKEBIN/formatted"
-for t in biome oxlint; do
-  printf '#!/usr/bin/env bash\necho ran >> "%s"\nexit 0\n' "$SENTINEL" > "$FAKEBIN/$t"; chmod +x "$FAKEBIN/$t"
-done
-run_postlint() { rm -f "$SENTINEL"; printf '%s' "$1" | PATH="$FAKEBIN:$PATH" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
+FAKEBIN="$(mktemp -d)"; BIOME_SENTINEL="$FAKEBIN/biome-ran"; OXLINT_SENTINEL="$FAKEBIN/oxlint-ran"
+printf '#!/usr/bin/env bash\necho ran >> "%s"\nexit 0\n' "$BIOME_SENTINEL" > "$FAKEBIN/biome"; chmod +x "$FAKEBIN/biome"
+printf '#!/usr/bin/env bash\necho ran >> "%s"\nexit 0\n' "$OXLINT_SENTINEL" > "$FAKEBIN/oxlint"; chmod +x "$FAKEBIN/oxlint"
+run_postlint() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; printf '%s' "$1" | PATH="$FAKEBIN:$PATH" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
 echo 'const x=1' > "$FAKEBIN/sample.ts"
 run_postlint "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
-{ [ "$RC" -eq 0 ] && [ -f "$SENTINEL" ]; } && ok ".ts edit invokes formatter" || bad ".ts edit should format (rc=$RC)"
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok ".ts edit invokes biome and oxlint" || bad ".ts edit should invoke both formatters (rc=$RC)"
+echo 'const x: number = 1' > "$FAKEBIN/sample.tsx"
+run_postlint "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.tsx")"
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok ".tsx edit invokes biome and oxlint" || bad ".tsx edit should invoke both formatters (rc=$RC)"
 run_postlint "$(printf '{"file_path":"%s/notes.md"}' "$FAKEBIN")"
-{ [ "$RC" -eq 0 ] && [ ! -f "$SENTINEL" ]; } && ok ".md edit is a no-op" || bad ".md edit should no-op (rc=$RC)"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok ".md edit is a no-op" || bad ".md edit should no-op (rc=$RC)"
 run_postlint '{"hook_event_name":"afterFileEdit"}'
-{ [ "$RC" -eq 0 ] && [ ! -f "$SENTINEL" ]; } && ok "missing path is a no-op" || bad "missing path should no-op (rc=$RC)"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing path is a no-op" || bad "missing path should no-op (rc=$RC)"
+# Pin current behavior when the formatters are absent from PATH: post-lint.sh
+# exits 1 with a stderr error and does not attempt to format (see its .ts|.tsx
+# branch). /usr/bin:/bin keeps jq available but excludes biome/oxlint.
+run_postlint_nopath() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; printf '%s' "$1" | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
+run_postlint_nopath "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
+{ [ "$RC" -eq 1 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing formatter exits 1 without formatting (pinned)" || bad "missing-formatter behavior changed (rc=$RC)"
 rm -rf "$FAKEBIN"
 
 # ---------------------------------------------------------------------------
@@ -146,6 +171,33 @@ run_stop "$PASSDIR" '{"loop_count":0}'
 { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "passing checks stay silent" || bad "passing should be silent (rc=$RC out=$OUT)"
 rm -rf "$PASSDIR"
 
+# Makefile routing: a Makefile with a `test:` target takes priority over
+# package.json/pnpm/npm below it.
+make_toolchain_makefile() { # $1=exit code
+  local dir; dir="$(mktemp -d)"
+  printf 'test:\n\techo test\n' > "$dir/Makefile"
+  mkdir "$dir/bin"
+  printf '#!/usr/bin/env bash\nexit %s\n' "$1" > "$dir/bin/make"; chmod +x "$dir/bin/make"
+  echo "$dir"
+}
+MAKEDIR="$(make_toolchain_makefile 1)"
+run_stop "$MAKEDIR" '{"loop_count":0}'
+{ echo "$OUT" | grep -q 'followup_message' && echo "$OUT" | grep -q 'make test failed'; } && ok "Makefile routing: failing make test emits followup" || bad "Makefile routing should emit followup (out=$OUT)"
+rm -rf "$MAKEDIR"
+
+# npm fallback: package.json without a pnpm-lock.yaml / packageManager:pnpm
+# field routes to npm run lint/typecheck/npm test.
+make_toolchain_npm() { # $1=exit code
+  local dir; dir="$(mktemp -d)"; echo '{}' > "$dir/package.json"
+  mkdir "$dir/bin"
+  printf '#!/usr/bin/env bash\nexit %s\n' "$1" > "$dir/bin/npm"; chmod +x "$dir/bin/npm"
+  echo "$dir"
+}
+NPMDIR="$(make_toolchain_npm 1)"
+run_stop "$NPMDIR" '{"loop_count":0}'
+{ echo "$OUT" | grep -q 'followup_message' && echo "$OUT" | grep -q 'lint failed'; } && ok "npm fallback: failing npm run emits followup" || bad "npm fallback should emit followup (out=$OUT)"
+rm -rf "$NPMDIR"
+
 # ---------------------------------------------------------------------------
 # enforce-model.sh — beforeSubmitPrompt: deny non-Composer models, allow Composer
 # ---------------------------------------------------------------------------
@@ -154,6 +206,10 @@ echo "enforce-model.sh (model gate)"
 # deny: gpt-5.5 (third-party slug)
 run_hook enforce-model.sh '{"model":"gpt-5.5"}'
 { [ "$RC" -eq 0 ] && is_deny; } && ok "deny: gpt-5.5 (non-composer)" || bad "gpt-5.5 should deny (rc=$RC out=$OUT)"
+
+# deny via model_id fallback: no `model` key at all
+run_hook enforce-model.sh '{"model_id":"gpt-5.5"}'
+{ [ "$RC" -eq 0 ] && is_deny; } && ok "deny: model_id fallback (no model key)" || bad "model_id fallback should deny (rc=$RC out=$OUT)"
 
 # allow: composer-2.5
 run_hook enforce-model.sh '{"model":"composer-2.5"}'
