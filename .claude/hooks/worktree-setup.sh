@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# SessionStart / SubagentStart hook: auto-run sync-local-docs.sh so a fresh
+# git worktree gets its tasks/ symlink without the manual step documented in
+# AGENTS.md / README ("Worktree setup"). See ADR 0009.
+#
+# Why SessionStart/SubagentStart and NOT WorktreeCreate (verified against
+# code.claude.com/docs/en/hooks, 2026-07-06): WorktreeCreate REPLACES Claude
+# Code's own git-worktree-creation behavior for `--worktree` / `isolation:
+# "worktree"` — the hook itself is responsible for running `git worktree add`
+# and printing the new path to stdout, and ANY non-zero exit fails creation
+# outright (not just exit 2, unlike almost every other hook event). A hook
+# that only ran this setup script and exited 0 — without performing the add
+# or printing a path — would satisfy "exit 0" but never create the worktree
+# and never emit the required path, silently breaking `--worktree` and
+# `isolation: "worktree"` project-wide. The exact input field carrying the
+# worktree path also isn't documented with a verbatim schema, so a correct
+# replacement (re-implementing `git worktree add` faithfully) can't be done
+# safely without live verification against a real payload.
+#
+# SessionStart/SubagentStart are the safe alternative: purely additive
+# ("Context only" — no decision/blocking control), and exit 2 is swallowed
+# ("Claude doesn't see it, the session or subagent proceeds" per docs) so a
+# failure here can never affect worktree creation or the session/subagent
+# itself. `cwd` is confirmed to be the worktree's own directory when a
+# session starts inside one, but this script does not rely on that — it
+# derives the worktree root from its own on-disk location instead (see
+# SCRIPT_DIR below), so it is correct regardless of the hook's invocation
+# cwd -- PROVIDED the wiring in .claude/settings.json invokes this script by
+# an absolute path (it uses "${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/
+# worktree-setup.sh"). If CLAUDE_PROJECT_DIR is unset (older Claude Code
+# versions), the fallback "." is relative and BASH_SOURCE[0] then only
+# resolves correctly when the hook happens to be invoked with cwd already at
+# the repo root -- this script's own cwd-independence does not by itself
+# guarantee the *invocation* is cwd-independent.
+#
+# `matcher: "startup"` on SessionStart deliberately excludes "resume"/"clear":
+# both imply a prior session already ran this setup in the same worktree, so
+# re-running it is unnecessary (the script is idempotent either way).
+#
+# Deliberately NOT profile-gated (runs in every HOOK_PROFILE, unlike the
+# other hooks in this directory): this is one-time environment setup
+# (symlinking tasks/), not a behavior guardrail. Skipping it in `minimal`
+# would leave prototyping worktrees without task tracking, defeating the
+# point of automating the step.
+
+# No `set -e`: a failure anywhere in this script must never surface as a
+# non-zero exit. SessionStart/SubagentStart can't block regardless, but a
+# non-zero exit still renders a "hook error" notice in the transcript, and
+# silent, best-effort setup is the whole point here.
+set -u
+
+# Drain stdin so Claude Code never blocks on an unread hook input pipe.
+cat >/dev/null 2>&1
+
+# Resolve the worktree root from this script's own path (two levels up from
+# .claude/hooks/), not from $PWD — this makes the sync target correct
+# regardless of what cwd the hook was actually invoked with.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+if [ -z "$SCRIPT_DIR" ]; then
+  exit 0
+fi
+WORKTREE_ROOT="$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd)"
+if [ -z "$WORKTREE_ROOT" ] || [ ! -f "$WORKTREE_ROOT/scripts/sync-local-docs.sh" ]; then
+  exit 0
+fi
+
+# Run sync-local-docs.sh, but surface its one actionable warning instead of
+# fully discarding output: if the worktree already has a real tasks/
+# directory (not a symlink), the script skips the symlink and warns --
+# silently swallowing that leaves a developer with a broken tasks/ setup and
+# no signal why. Everything else sync-local-docs.sh prints (progress lines,
+# sync counts) is routine and stays suppressed. Matching on the warning's
+# distinctive Japanese substring is fine here since it's the same script's
+# own literal string, not user input. Still fail-open: no match is not an
+# error, just nothing to surface.
+SYNC_OUTPUT="$(cd "$WORKTREE_ROOT" && bash scripts/sync-local-docs.sh 2>&1)"
+printf '%s\n' "$SYNC_OUTPUT" | grep -A1 '実ディレクトリ' >&2 || true
+
+exit 0

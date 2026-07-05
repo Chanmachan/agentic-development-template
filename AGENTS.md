@@ -6,7 +6,7 @@
 - Architecture decisions: `docs/adr/`
 
 ## Workflow
-- In a fresh worktree, run `bash scripts/sync-local-docs.sh` first: `tasks/` is git-ignored and does not come with the branch (see README "Worktree setup").
+- In a fresh worktree, run `bash scripts/sync-local-docs.sh` first: `tasks/` is git-ignored and does not come with the branch (see README "Worktree setup"). Claude Code runs this automatically on session/subagent start (ADR 0009); Codex and Cursor still need the manual step.
 - Do not start implementation before reading:
     - `docs/spec.md`
     - relevant ADRs in `docs/adr/`

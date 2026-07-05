@@ -109,9 +109,10 @@ codex    # Codex
 │
 ├── .claude/
 │   ├── settings.json      # Claude Code Hook & permission settings
+│   ├── rules/             # git.md (always-loaded), tasks.md (paths-scoped to tasks/**, see ADR 0009)
 │   ├── agents/            # Subagents (planner, code-reviewer, investigator)
 │   │   └── reviewers/     # Per-perspective review subagents (correctness, security, tests, performance, readability, docs-adr)
-│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review)
+│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review, context-dev/review/research/debug)
 │   ├── commands/          # Slash commands (/fix-review, /handoff, /multi-review)
 │   └── hooks/
 │       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks; copy kept in sync with .codex, see ADR 0008)
@@ -119,6 +120,7 @@ codex    # Codex
 │       ├── post-lint.sh       # Auto-lint after every file edit (PostToolUse)
 │       │                      # ★ Edit this to match your language
 │       ├── stop-check.sh      # Block completion until tests pass (Stop)
+│       ├── worktree-setup.sh  # Auto-sync tasks/ symlink on SessionStart/SubagentStart (all profiles, see ADR 0009)
 │       └── suggest-compact.mjs # Suggest /clear when context fills (strict only)
 │
 ├── .codex/
@@ -175,6 +177,7 @@ These run automatically when the configured agent writes code:
 | Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins via the shared `scripts/lib/protected.sh` classification (ADR 0008). `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
 | Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
+| On session/subagent start (SessionStart, SubagentStart — all profiles) | `worktree-setup.sh` runs `sync-local-docs.sh` so a fresh worktree's `tasks/` symlink is set up without a manual step — see ADR 0009 |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
 | Before commit (Lefthook `commit-msg`) | Rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`; `Merge`/`Revert` exempted) |
 | On every PR / push to `main` (GitHub Actions) | Agent-independent backstop: doc-health, the `tests/*.test.sh` suite, and shellcheck re-run in CI regardless of whether local hooks ran — see ADR 0007 |
@@ -221,7 +224,9 @@ HOOK_PROFILE=strict cursor-agent --model composer-2.5  # tighten Cursor (6 hooks
 
 ## Session Contexts
 
-`contexts/*.md` are purpose-specific system prompts. For Claude Code they complement `CLAUDE.md`; for Codex they complement `AGENTS.md` and project skills. Inject one at session start when your tool supports an appended system prompt:
+`contexts/*.md` are purpose-specific system prompts. For Claude Code they complement `CLAUDE.md`; for Codex they complement `AGENTS.md` and project skills. `contexts/*.md` stays the single source; two ways to load one, depending on when you need it:
+
+**Session start / automation** — inject at launch when your tool supports an appended system prompt:
 
 ```bash
 claude --append-system-prompt "$(cat contexts/dev.md)"
@@ -236,12 +241,21 @@ alias cc-research='claude --append-system-prompt "$(cat contexts/research.md)"'
 alias cc-debug='claude --append-system-prompt "$(cat contexts/debug.md)"'
 ```
 
-| Context | Focus |
-|---------|-------|
-| `dev.md` | Plan → TDD → Verify, subagent delegation rules |
-| `review.md` | Read-only stance, Blocking/Suggestion/Nit categorization |
-| `research.md` | Comparing options, writing to `research/`, promoting to ADR |
-| `debug.md` | Reproduce → hypothesize → verify → fix loop |
+**Mid-session (Claude Code only)** — load a context interactively without restarting, via a `disable-model-invocation` skill that dynamically injects the matching `contexts/*.md` file (see ADR 0009):
+
+```
+/context-dev
+/context-review
+/context-research
+/context-debug
+```
+
+| Context | Focus | Interactive skill |
+|---------|-------|--------------------|
+| `dev.md` | Plan → TDD → Verify, subagent delegation rules | `/context-dev` |
+| `review.md` | Read-only stance, Blocking/Suggestion/Nit categorization | `/context-review` |
+| `research.md` | Comparing options, writing to `research/`, promoting to ADR | `/context-research` |
+| `debug.md` | Reproduce → hypothesize → verify → fix loop | `/context-debug` |
 
 ---
 
@@ -274,7 +288,7 @@ See ADR 0004 for the design rationale.
 
 `tasks/` is **git-ignored local working state** (like `tmp/` and `log/`), not shipped to teammates — share via the PR body. The convention itself lives in committed docs, so it travels with every clone:
 
-- `.claude/rules/tasks.md` / `.codex/rules/tasks.md` — canonical schema and lifecycle.
+- `.claude/rules/tasks.md` / `.codex/rules/tasks.md` — canonical schema and lifecycle. `.claude/rules/tasks.md` carries `paths: ["tasks/**", "scripts/sync-tasks.sh"]` frontmatter, so it loads only when Claude works with those files, not every session (`.claude/rules/git.md` stays unscoped — commit conventions are needed every session). See ADR 0009.
 - Each task gets its own `tasks/<id>-todo.md` plan file; `tasks/tasks.jsonl` is the status registry (one line per task, upserted by `id`). There is no privileged single `todo.md`.
 
 Update a registry line safely (locked, atomic write) with the helper:
@@ -287,7 +301,7 @@ bash scripts/sync-tasks.sh upsert <id> status=in_progress branch=feature/x pr=12
 
 ### Worktree setup
 
-`tasks/` is **single-sourced in the main checkout (分岐元)**. Because it is git-ignored, a fresh `git worktree` starts without it. Run this once in a new worktree:
+`tasks/` is **single-sourced in the main checkout (分岐元)**. Because it is git-ignored, a fresh `git worktree` starts without it. Claude Code runs the sync automatically on session/subagent start (`worktree-setup.sh`, all `HOOK_PROFILE` levels — see ADR 0009), so this step is a fallback for Claude Code and the required manual step for Codex and Cursor, which don't have that hook. Run it once in a new worktree:
 
 ```bash
 bash scripts/sync-local-docs.sh            # symlink tasks/ to the main checkout (+ copy any gitignored docs)
