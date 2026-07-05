@@ -126,6 +126,11 @@ codex    # Codex
 ├── .agents/
 │   └── skills/            # Codex skills (spec-interview, plan-mode, tdd, code-review, fix-review, handoff, multi-review)
 │
+├── .cursor/               # Cursor implementer harness (Composer/Agent mode; see ADR 0006)
+│   ├── hooks.json         # Cursor hook settings
+│   ├── hooks/             # Cursor hook scripts (protect-config/read/shell, post-lint, stop-check, enforce-model)
+│   └── rules/             # cursor-implementer.mdc (alwaysApply implementer stance)
+│
 ├── contexts/              # Session-purpose system prompts (dev/review/research/debug)
 │
 ├── docs/
@@ -182,6 +187,7 @@ HOOK_PROFILE=minimal claude     # loosen Claude Code
 HOOK_PROFILE=strict claude      # tighten Claude Code
 HOOK_PROFILE=minimal codex      # loosen Codex
 HOOK_PROFILE=strict codex       # tighten Codex
+HOOK_PROFILE=strict cursor-agent --model composer-2.5  # tighten Cursor (6 hooks; see .cursor/README.md)
 ```
 
 `suggest-compact.mjs` uses transcript byte size / 4 as a rough token estimate. Override the threshold via `SUGGEST_COMPACT_THRESHOLD` (default `140000`).
