@@ -26,6 +26,10 @@ hook_debug stop "$input"
 # Prevent infinite followup loops: once we have nudged the agent
 # CURSOR_STOP_LOOP_LIMIT times, let it stop even if checks still fail.
 LOOP_LIMIT="${CURSOR_STOP_LOOP_LIMIT:-2}"
+# A non-numeric override (e.g. "abc") would otherwise reach the `-ge` integer
+# comparison below and abort with "integer expression expected"; fall back to
+# the default instead, mirroring how loop_count itself is validated.
+[[ "$LOOP_LIMIT" =~ ^[0-9]+$ ]] || LOOP_LIMIT=2
 # `|| loop_count=0` so a jq parse error (malformed stdin) reaches the numeric
 # fallback below instead of aborting under `set -e`. The regex then guards
 # against valid-but-non-numeric values (e.g. "abc", null) before the integer
