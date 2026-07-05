@@ -28,17 +28,44 @@ run_hook() { # $1=hook path $2=json -> $RC, $OUT
   RC=$?
 }
 
+# Like run_hook but keeps stdout and stderr separate, so a "quiet fail-open"
+# assertion (no stray stdout on the allow path) isn't masked by 2>&1 merging.
+run_hook_split() { # $1=hook path $2=json -> $RC, $OUT (stdout only)
+  OUT="$(printf '%s' "$2" | bash "$1" 2>/dev/null)"
+  RC=$?
+}
+
 for HOOK in "${HOOKS[@]}"; do
   label="${HOOK#"$REPO_ROOT"/}"
   echo "$label (deny cases)"
   for p in "/repo/.env" "/repo/.env.local" "/repo/.ENV" "/repo/tsconfig.json" \
-           "/repo/pnpm-lock.yaml" "/repo/.env " "/repo/.env/"; do
+           "/repo/pnpm-lock.yaml" "/repo/.env " "/repo/.env/" \
+           "/repo/apps/.git/config" "/repo/packages/api/pnpm-lock.yaml" \
+           "/repo/.env.sample" "/repo/.env.template"; do
     run_hook "$HOOK" '{"tool_input":{"file_path":"'"$p"'"}}'
     [ "$RC" -eq 2 ] && ok "deny $p" || bad "$p should deny (rc=$RC out=$OUT)"
   done
 
+  # Guard self-protection (ADR 0008 A1): the guard's own files, and the shared
+  # classification lib it depends on, must refuse edits — a single edit to any
+  # of these could neuter every write-protection check. PROTECTED_PATTERNS uses
+  # substring matching, so these two cases exercise both the shared lib and one
+  # harness's own hook copy; the .cursor copy is exercised in
+  # scripts/test-cursor-hooks.sh instead (its own protect-config.sh guard).
+  for p in "/repo/scripts/lib/protected.sh" "/repo/.claude/hooks/protect-config.sh"; do
+    run_hook "$HOOK" '{"tool_input":{"file_path":"'"$p"'"}}'
+    [ "$RC" -eq 2 ] && ok "deny guard self-edit $p" || bad "$p should deny (rc=$RC out=$OUT)"
+  done
+
   echo "$label (allow cases)"
-  for p in "/repo/.env.example" "/repo/foo.env" "/repo/src/ok.ts"; do
+  # .env.sample / .env.template are DENIED above, not allowed: they narrow the
+  # old inline "*.example/*.sample/*.template allow" rule deliberately —
+  # .env.example is the single canonical safe-to-share template name (see ADR
+  # 0006 §5 / ADR 0008). tsconfig.json.example still allows: the suffix
+  # override applies to non-.env config templates, exercising that the
+  # *.example/*.sample/*.template precedence still wins over PROTECTED_PATTERNS
+  # (tsconfig.json) for those.
+  for p in "/repo/.env.example" "/repo/foo.env" "/repo/src/ok.ts" "/repo/tsconfig.json.example"; do
     run_hook "$HOOK" '{"tool_input":{"file_path":"'"$p"'"}}'
     [ "$RC" -eq 0 ] && ok "allow $p" || bad "$p should allow (rc=$RC out=$OUT)"
   done
@@ -47,11 +74,50 @@ for HOOK in "${HOOKS[@]}"; do
   run_hook "$HOOK" 'not json'
   [ "$RC" -eq 0 ] && ok "malformed stdin fails open (allow)" || bad "malformed stdin should fail open, rc=$RC out=$OUT"
 
+  run_hook_split "$HOOK" 'not json'
+  { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "malformed stdin is quiet on stdout" || bad "malformed stdin should produce no stdout, rc=$RC out=$OUT"
+
   run_hook "$HOOK" '{"tool_input":{"file_path":""}}'
   [ "$RC" -eq 0 ] && ok "empty path allows" || bad "empty path should allow, rc=$RC out=$OUT"
 
   run_hook "$HOOK" '{"tool_input":{"file_path":"/repo/.env"}}'
   echo "$OUT" | grep -q 'protected config/secret file' && ok "deny message mentions protected file reason" || bad "deny message should mention reason, out=$OUT"
+
+  # Profile-gate wiring regression guard: HOOK_PROFILE=minimal must actually
+  # turn protect-config into a no-op (protect-config is only in
+  # minimal/standard/strict's later tiers, not minimal — see lib/profile.sh),
+  # so a write that would otherwise be denied goes through.
+  OUT="$(printf '%s' '{"tool_input":{"file_path":"/repo/.env"}}' | HOOK_PROFILE=minimal bash "$HOOK" 2>&1)"
+  RC=$?
+  [ "$RC" -eq 0 ] && ok "HOOK_PROFILE=minimal allows .env write (gate skipped)" || bad "HOOK_PROFILE=minimal should skip protect-config, rc=$RC out=$OUT"
+done
+
+# ---------------------------------------------------------------------------
+# Fail-closed on a missing shared lib (ADR 0008 B): copy each hook + its
+# lib/profile.sh into an isolated temp dir WITHOUT scripts/lib/protected.sh,
+# so the relative `source .../scripts/lib/protected.sh` in the hook resolves
+# to nothing. A benign, otherwise-allowed path must still be BLOCKED (exit 2)
+# instead of silently falling through to "allow" — the guard's only job is
+# refusing writes, so an unloadable classification lib must fail closed.
+echo "fail-closed: shared lib missing"
+for HOOK in "${HOOKS[@]}"; do
+  label="${HOOK#"$REPO_ROOT"/}"
+  rel="${HOOK#"$REPO_ROOT"/}" # e.g. .claude/hooks/protect-config.sh — kept at
+                               # the same depth as the real repo so the hook's
+                               # own "../../scripts/lib/..." relative source
+                               # resolves under $FIXTURE, not above it.
+  hook_dir="$(dirname "$rel")" # .claude/hooks
+
+  FIXTURE="$(mktemp -d)"
+  mkdir -p "$FIXTURE/$hook_dir/lib"
+  cp "$HOOK" "$FIXTURE/$rel"
+  cp "$REPO_ROOT/$hook_dir/lib/profile.sh" "$FIXTURE/$hook_dir/lib/profile.sh"
+  # Deliberately no scripts/lib/protected.sh under $FIXTURE.
+
+  OUT="$(printf '%s' '{"tool_input":{"file_path":"/repo/src/ok.ts"}}' | bash "$FIXTURE/$rel" 2>&1)"
+  RC=$?
+  [ "$RC" -eq 2 ] && ok "$label: missing shared lib fails closed (exit 2)" || bad "$label: missing shared lib should block, rc=$RC out=$OUT"
+  rm -rf "$FIXTURE"
 done
 
 echo

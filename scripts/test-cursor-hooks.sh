@@ -36,7 +36,7 @@ is_deny() { echo "$OUT" | grep -qE '"permission": *"deny"'; }
 # protect-config.sh — preToolUse(Write): deny edits to protected/secret files
 # ---------------------------------------------------------------------------
 echo "protect-config.sh (write block)"
-for p in "/repo/.env" "/repo/.env.local" "/repo/.env.template" "/repo/tsconfig.json" \
+for p in "/repo/.env" "/repo/.env.local" "/repo/.env.template" "/repo/.env.sample" "/repo/tsconfig.json" \
          "/repo/pnpm-lock.yaml" "/repo/apps/web/.git/config" "/repo/.env/" "/repo/.ENV"; do
   run_hook protect-config.sh '{"tool_input":{"file_path":"'"$p"'"}}'
   { [ "$RC" -eq 0 ] && is_deny; } && ok "deny write $p" || bad "write $p should deny, rc=$RC out=$OUT"
@@ -44,6 +44,16 @@ done
 for p in "/repo/.env.example" "/repo/apps/web/src/foo.ts" "/repo/foo.env" "/repo/config.json.template"; do
   run_hook protect-config.sh '{"tool_input":{"file_path":"'"$p"'"}}'
   { [ "$RC" -eq 0 ] && ! is_deny; } && ok "allow write $p" || bad "write $p should allow, rc=$RC out=$OUT"
+done
+
+# Guard self-protection (ADR 0008 A1): the .cursor copy of protect-config.sh
+# plus the shared classification lib and stop-check.sh (this harness's own
+# guard files) must refuse edits to themselves — a single edit to any of them
+# could neuter every write-protection check. The .claude/scripts-lib cases are
+# covered in tests/protect-config.test.sh; this exercises the .cursor copies.
+for p in "/repo/.cursor/hooks/stop-check.sh" "/repo/.cursor/hooks/lib/protected.sh" "/repo/scripts/lib/protected.sh"; do
+  run_hook protect-config.sh '{"tool_input":{"file_path":"'"$p"'"}}'
+  { [ "$RC" -eq 0 ] && is_deny; } && ok "deny guard self-edit $p" || bad "$p should deny, rc=$RC out=$OUT"
 done
 run_hook protect-config.sh '{"tool_input":{"file_path":["/repo/src/ok.ts","/repo/.env"]}}'
 is_deny && ok "array write with .env element denied" || bad "array .env should deny, out=$OUT"
@@ -57,6 +67,7 @@ run_hook protect-config.sh '{"tool_input":{"file_path":"/repo/.env "}}'
 is_deny && ok "trailing-space .env still denied (normalization)" || bad "trailing-space .env should deny, out=$OUT"
 run_hook protect-config.sh 'not json'
 { [ "$RC" -eq 0 ] && ! is_deny; } && ok "malformed stdin fails open (allow)" || bad "malformed should allow, rc=$RC out=$OUT"
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "malformed stdin is quiet on stdout" || bad "malformed stdin should produce no stdout, rc=$RC out=$OUT"
 run_hook protect-config.sh '{"tool_input":{"file_path":""}}'
 { [ "$RC" -eq 0 ] && ! is_deny; } && ok "empty path allows (exit 0)" || bad "empty path should allow, rc=$RC out=$OUT"
 run_hook protect-config.sh '{"tool_input":{"file_path":"/repo/.env"}}'
@@ -114,6 +125,33 @@ run_hook protect-shell.sh '{}'
 { [ "$RC" -eq 0 ] && ! is_deny; } && ok "missing command allows" || bad "missing command should allow, rc=$RC out=$OUT"
 run_hook protect-shell.sh 'not json'
 { [ "$RC" -eq 0 ] && ! is_deny; } && ok "malformed stdin fails open (allow)" || bad "malformed stdin should allow, rc=$RC out=$OUT"
+
+# ---------------------------------------------------------------------------
+# Fail-closed on a missing shared lib (ADR 0008 B): copy each blockable guard
+# + lib/profile.sh + lib/protected.sh (the thin wrapper) into an isolated temp
+# dir WITHOUT scripts/lib/protected.sh, so the wrapper's relative source of
+# the shared lib resolves to nothing. A benign, otherwise-allowed input must
+# still be denied (deny JSON on stdout) instead of silently falling through.
+# ---------------------------------------------------------------------------
+echo "fail-closed: shared lib missing"
+FIXTURE="$(mktemp -d)"
+mkdir -p "$FIXTURE/.cursor/hooks/lib"
+cp "$HOOKS_DIR/protect-config.sh" "$HOOKS_DIR/protect-read.sh" "$HOOKS_DIR/protect-shell.sh" "$FIXTURE/.cursor/hooks/"
+cp "$HOOKS_DIR/lib/profile.sh" "$FIXTURE/.cursor/hooks/lib/profile.sh"
+cp "$HOOKS_DIR/lib/protected.sh" "$FIXTURE/.cursor/hooks/lib/protected.sh"
+# Deliberately no scripts/lib/protected.sh under $FIXTURE.
+
+run_hook_fixture() { # $1=script $2=json -> $RC, $OUT
+  OUT="$(printf '%s' "$2" | bash "$FIXTURE/.cursor/hooks/$1" 2>/dev/null)"
+  RC=$?
+}
+run_hook_fixture protect-config.sh '{"tool_input":{"file_path":"/repo/src/ok.ts"}}'
+{ [ "$RC" -eq 0 ] && is_deny; } && ok "protect-config.sh: missing shared lib fails closed (deny)" || bad "protect-config.sh missing lib should deny, rc=$RC out=$OUT"
+run_hook_fixture protect-read.sh '{"file_path":"/repo/src/ok.ts"}'
+{ [ "$RC" -eq 0 ] && is_deny; } && ok "protect-read.sh: missing shared lib fails closed (deny)" || bad "protect-read.sh missing lib should deny, rc=$RC out=$OUT"
+run_hook_fixture protect-shell.sh '{"command":"ls -la"}'
+{ [ "$RC" -eq 0 ] && is_deny; } && ok "protect-shell.sh: missing shared lib fails closed (deny)" || bad "protect-shell.sh missing lib should deny, rc=$RC out=$OUT"
+rm -rf "$FIXTURE"
 
 # ---------------------------------------------------------------------------
 # post-lint.sh — afterFileEdit: format edited TS/JS, no-op for others
