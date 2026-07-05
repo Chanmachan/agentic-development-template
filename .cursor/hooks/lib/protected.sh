@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Shared protected-path logic for the .cursor/ guard hooks.
 #
-# Sourced by all five .cursor hooks: the three blockable guards —
+# Sourced by all six .cursor hooks: the three blockable guards —
 # protect-config.sh (preToolUse:Write), protect-read.sh (beforeReadFile),
 # protect-shell.sh (beforeShellExecution) — use the matching rules; post-lint.sh
-# and stop-check.sh source it only for the shared hook_debug() helper. The
-# hardened rules thus live in exactly one place. (Many consumers justify a shared
-# lib here, unlike profile.sh which is intentionally copied per harness.)
+# and stop-check.sh source it only for the shared hook_debug() helper;
+# enforce-model.sh (beforeSubmitPrompt) sources it for hook_debug() and deny().
+# The hardened rules thus live in exactly one place. (Many consumers justify a
+# shared lib here, unlike profile.sh which is intentionally copied per harness.)
 #
 # Two notions of "protected":
 #   - is_protected_path : config integrity + secrets. Used to block WRITES
@@ -81,8 +82,13 @@ is_secret_path() { # $1=path
 
   # Cloud/SSH credential material identified by directory + name (bare
   # "credentials" is intentionally NOT matched — it is a common non-file word).
+  # Both the anchored (leading dir, e.g. "/home/u/.aws/credentials") and bare
+  # relative (e.g. ".aws/credentials") forms are matched — a relative reference
+  # has no leading "/" for "*/..." to catch.
   case "$fp_lc" in
-    */.aws/credentials | */.aws/credentials.* | */.ssh/id_*) return 0 ;;
+    .aws/credentials | */.aws/credentials | \
+    .aws/credentials.* | */.aws/credentials.* | \
+    .ssh/id_* | */.ssh/id_*) return 0 ;;
   esac
 
   case "$base_lc" in
@@ -101,10 +107,9 @@ is_protected_path() { # $1=path
   base_lc="$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')"
 
   # .env family first (secrets), case-insensitive, .env.example exempt.
-  if [ "$base_lc" = ".env" ] || [ "${base_lc#.env.}" != "$base_lc" ]; then
-    [ "$base_lc" = ".env.example" ] && return 1
-    return 0
-  fi
+  # Reuse _is_env_secret so the rule has one source of truth; a non-.env
+  # basename falls through unmatched to the generic checks below.
+  _is_env_secret "$base_lc" && return 0
 
   # Generic safe-to-share template suffixes for non-env config.
   case "$base" in
