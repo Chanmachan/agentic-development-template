@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-06-25
-- Last-validated: 2026-07-03
+- Last-validated: 2026-07-06
 
 ## Context
 
@@ -69,10 +69,12 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
 
 ## Consequences
 
-- commit 時の安全網は現状 lefthook pre-commit (`doc-health` のみ。lint/typecheck は言語別に未有効化、
-  CI は未整備) で、git レベルのフックはエージェント非依存なので Cursor が commit した瞬間にも効く。
-  ただし lefthook を通さない commit は素通りする。Cursor 側で新規に作るのは「commit を待たない
-  実装中ゲート」だけでよい。
+- commit 時の安全網は lefthook pre-commit (`doc-health`。lint/typecheck は言語別に未有効化) と
+  commit-msg (コミットメッセージの prefix 規約) で、git レベルのフックはエージェント非依存なので
+  Cursor が commit した瞬間にも効く。ただし lefthook を通さない commit は素通りする。加えて ADR 0007 で
+  `.github/workflows/ci.yml` (doc-health / `tests/*.test.sh` / shellcheck) が PR・push 単位のバックストップ
+  として追加され、lefthook を経由しない変更もカバーするようになった。Cursor 側で新規に作るのは
+  「commit を待たない実装中ゲート」だけでよい。
 - フックのルーティング/判定は `scripts/test-cursor-hooks.sh` の fixture テストで固定し、Cursor 実機なしで
   回帰を検出する。
 - 実機依存の未確定点 (preToolUse の file path フィールド名 / `.cursor/hooks.json` が CLI でも発火するか /
