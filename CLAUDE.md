@@ -28,7 +28,7 @@ See: @AGENTS.md
 
 ## Skills and subagents
 
-- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review` (オンデマンドロード)
+- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `context-{dev,review,research,debug}` (オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator` (委譲時にロード)
 
 ## Hook profiles and contexts
