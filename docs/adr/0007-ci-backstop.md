@@ -32,9 +32,10 @@
 2. **tests** — `tests/*.test.sh` を全て実行する。加えて `scripts/test-cursor-hooks.sh` が存在すれば
    (`.cursor/` 実装担当ハーネスが未マージのブランチでは存在しないため、ファイル存在チェックでガードする)
    それも実行する。
-3. **shellcheck** — `scripts/*.sh`、`.claude/hooks/*.sh` と `.claude/hooks/lib/*.sh` (明示した2階層、再帰
-   はしない)、`.codex/hooks/*.sh` と `.codex/hooks/lib/*.sh` (同じく2階層)、`.cursor/hooks` が存在する場合は
-   `find` で `.cursor/hooks/**/*.sh` を再帰的に列挙 — に対して `--severity=error` で実行する。style/info
+3. **shellcheck** — `scripts/*.sh` と `scripts/lib/*.sh`、`.claude/hooks/*.sh` と `.claude/hooks/lib/*.sh`
+   (明示した2階層、再帰はしない)、`.codex/hooks/*.sh` と `.codex/hooks/lib/*.sh` (同じく2階層)、
+   `.cursor/hooks` が存在する場合は `find` で `.cursor/hooks/**/*.sh` を再帰的に列挙 — に対して
+   `--severity=error` で実行する。style/info
    レベルの指摘 (例: `.sh` を source する際の SC1091) は今回スコープ外とし、まずはエラーレベルのみを
    ブロッキングにする warning-level gate として導入する。厳格化 (`--severity=warning` 化や個別 ID の是正)
    は将来の課題。

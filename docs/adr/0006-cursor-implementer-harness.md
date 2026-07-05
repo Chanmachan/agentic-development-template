@@ -27,7 +27,8 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
 2. **ハーネス間でフックの `profile.sh` は共有せず、各自コピーを持つ** (ADR 0005 §Decision の慣習を踏襲)。
    3系統で `lib/profile.sh` を重複させるが、各ハーネスを単独で読めるほうを優先する。`.cursor` 内では
    3ガードが `lib/protected.sh` を共有する(consumer が複数あり共有ライブラリ化が正当化される)。
-   共有ライブラリ化リファクタは別 PR の論点とする。
+   共有ライブラリ化リファクタは別 PR の論点とする。→ ADR 0008 で実施 (`scripts/lib/protected.sh` に
+   分類ロジックを集約。`profile.sh` は方針どおり各ハーネスのコピーを維持)。
 
 3. **`HOOK_PROFILE` の profile 帰属は ADR 0003 を土台に、Cursor 固有の保護フックを足す**。Cursor の
    `standard` は **6 フック** = post-lint, protect-config, **protect-read, protect-shell**, stop-check,
@@ -49,7 +50,8 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
    バックストップが無いので、正規化(末尾スラッシュ/空白)・case-insensitive 一致・`.env.*` は `.env.example`
    のみ許可・配列値の全要素検査を加える。書込拒否は config 全般+秘密(`is_protected_path`)、読取/シェル
    拒否は秘密のみ(`is_secret_path`、tsconfig 等の読取は許可)。`.claude` / `.codex` の inline 版への同等
-   バックポートは別 PR とする。
+   バックポートは別 PR とする。→ ADR 0008 で実施 (分類ロジックを `scripts/lib/protected.sh` に切り出し、
+   `.claude`/`.codex` の `protect-config.sh` をそれ経由の判定にアップグレード)。
 
 6. **モデルを Composer 2.5 に固定し `beforeSubmitPrompt` で強制する**。理由:
    - Cursor Pro の「Auto + Composer」包括プール内であれば Composer を使っても追加費用は無い。Auto は

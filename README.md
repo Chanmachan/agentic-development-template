@@ -114,8 +114,8 @@ codex    # Codex
 │   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review)
 │   ├── commands/          # Slash commands (/fix-review, /handoff, /multi-review)
 │   └── hooks/
-│       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks)
-│       ├── protect-config.sh  # Block edits to linter configs (PreToolUse)
+│       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks; copy kept in sync with .codex, see ADR 0008)
+│       ├── protect-config.sh  # Block edits to configs/secrets (PreToolUse) — classification via scripts/lib/protected.sh
 │       ├── post-lint.sh       # Auto-lint after every file edit (PostToolUse)
 │       │                      # ★ Edit this to match your language
 │       ├── stop-check.sh      # Block completion until tests pass (Stop)
@@ -125,8 +125,8 @@ codex    # Codex
 │   ├── hooks.json         # Codex hook settings
 │   ├── agents/            # Codex subagent TOML files
 │   │                      # Includes review-*.toml perspective reviewers
-│   ├── rules/             # Codex-local reusable rules
-│   └── hooks/             # Codex hook scripts mirroring .claude/hooks
+│   ├── rules/             # Symlinks to .claude/rules/*.md (git.md, tasks.md — see ADR 0008)
+│   └── hooks/             # Codex hook scripts mirroring .claude/hooks (parity enforced by tests/harness-parity.test.sh)
 │
 ├── .agents/
 │   └── skills/            # Codex skills (spec-interview, plan-mode, tdd, code-review, fix-review, handoff, multi-review)
@@ -134,6 +134,7 @@ codex    # Codex
 ├── .cursor/               # Cursor implementer harness (Composer/Agent mode; see ADR 0006)
 │   ├── hooks.json         # Cursor hook settings
 │   ├── hooks/             # Cursor hook scripts (protect-config/read/shell, post-lint, stop-check, enforce-model)
+│   │                      # lib/protected.sh is a thin wrapper over scripts/lib/protected.sh (see ADR 0008)
 │   └── rules/             # cursor-implementer.mdc (alwaysApply implementer stance)
 │
 ├── contexts/              # Session-purpose system prompts (dev/review/research/debug)
@@ -155,10 +156,11 @@ codex    # Codex
 ├── scripts/
 │   ├── check-doc-health.sh  # Checks AGENTS.md line count & ADR freshness
 │   ├── sync-tasks.sh        # Read/upsert the tasks.jsonl registry (locked, atomic)
-│   └── sync-local-docs.sh   # Worktree setup: symlink tasks/ + copy gitignored docs
+│   ├── sync-local-docs.sh   # Worktree setup: symlink tasks/ + copy gitignored docs
+│   └── lib/protected.sh     # Shared protected-path classification, used by all 3 harnesses (ADR 0008)
 │
 ├── src/                   # Your application code — add this once you start building
-└── tests/                 # Test code
+└── tests/                 # Test code, incl. protect-config.test.sh and harness-parity.test.sh (drift gate, ADR 0008)
 ```
 
 ---
@@ -170,7 +172,7 @@ These run automatically when the configured agent writes code:
 | Trigger | Behavior |
 |---------|----------|
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
-| Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins. `*.example` / `*.sample` / `*.template` are allowlisted |
+| Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins via the shared `scripts/lib/protected.sh` classification (ADR 0008). `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
 | Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
@@ -183,13 +185,13 @@ These run automatically when the configured agent writes code:
 
 ## Continuous Integration
 
-`.github/workflows/ci.yml` runs on pull requests targeting `main` と `main` への push, independent of whether the agent's local hooks fired:
+`.github/workflows/ci.yml` runs on pull requests targeting `main` and pushes to `main`, independent of whether the agent's local hooks fired:
 
 | Job | What it checks |
 |-----|-----------------|
 | `doc-health` | `bash scripts/check-doc-health.sh` — same check as the lefthook `pre-commit` hook |
 | `tests` | Every `tests/*.test.sh`, plus `scripts/test-cursor-hooks.sh` if present (guarded by a file-existence check so CI stays green whether or not the `.cursor/` harness has landed on a given branch) |
-| `shellcheck` | `scripts/*.sh`; `.claude/hooks/*.sh` and `.claude/hooks/lib/*.sh` (two explicit levels, not recursive); `.codex/hooks/*.sh` and `.codex/hooks/lib/*.sh` (same, two levels); `.cursor/hooks/**/*.sh` recursively via `find` if `.cursor/hooks` exists — at `--severity=error`, a warning-level gate for now; tightening it is future work |
+| `shellcheck` | `scripts/*.sh` and `scripts/lib/*.sh`; `.claude/hooks/*.sh` and `.claude/hooks/lib/*.sh` (two explicit levels, not recursive); `.codex/hooks/*.sh` and `.codex/hooks/lib/*.sh` (same, two levels); `.cursor/hooks/**/*.sh` recursively via `find` if `.cursor/hooks` exists — at `--severity=error`, a warning-level gate for now; tightening it is future work |
 
 This is a language-agnostic template with no application code yet, so CI only covers the template's own testable surface. Add lint/typecheck/build/test jobs for your stack once you've filled in `docs/spec.md` and picked a language (see the Checklist below). See ADR 0007 for the rationale.
 
@@ -314,6 +316,7 @@ Files you should **not** change (they are the guardrails themselves):
 - `.codex/hooks.json`
 - `.claude/hooks/protect-config.sh` / `.codex/hooks/protect-config.sh`
 - `.claude/hooks/stop-check.sh` / `.codex/hooks/stop-check.sh`
+- `scripts/lib/protected.sh`
 - `scripts/check-doc-health.sh`
 
 ---
