@@ -1,3 +1,9 @@
+---
+paths:
+  - "tasks/**"
+  - "scripts/sync-tasks.sh"
+---
+
 # Task Tracking Rules
 
 `tasks/` is git-ignored local working state. Sharing with reviewers/teammates is via the PR body, not these files. This doc is the canonical spec; `AGENTS.md` / `CLAUDE.md` only point here.
