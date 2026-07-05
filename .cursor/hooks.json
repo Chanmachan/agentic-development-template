@@ -8,7 +8,7 @@
     ],
     "preToolUse": [
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit|MultiEdit|ApplyPatch",
         "command": "bash .cursor/hooks/protect-config.sh"
       }
     ],

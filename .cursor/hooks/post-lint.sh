@@ -41,8 +41,8 @@ case "$file" in
       echo "ERROR: oxlint is not installed. Run: npm install -D oxlint" >&2
       exit 1
     fi
-    biome format --write "$file" >/dev/null 2>&1 || true
-    oxlint --fix "$file" >/dev/null 2>&1 || true
+    biome format --write -- "$file" >/dev/null 2>&1 || true
+    oxlint --fix -- "$file" >/dev/null 2>&1 || true
     ;;
 
   # -------------------------------------------------------
