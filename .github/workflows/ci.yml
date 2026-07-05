@@ -1,0 +1,71 @@
+name: CI
+
+# This is a language-agnostic scaffolding template (no app code, no package
+# manifest yet), so CI exercises the repo's own testable surface: the doc
+# health guardrail and the bash fixture test suite under tests/. Add
+# lint/typecheck/build jobs here once a language stack is chosen (see README
+# "Checklist: What to Edit When Starting a New Project").
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  doc-health:
+    name: Doc Health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check AGENTS.md/CLAUDE.md pointers and ADR freshness
+        run: bash scripts/check-doc-health.sh
+
+  tests:
+    name: Bash Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests/*.test.sh
+        run: |
+          set -euo pipefail
+          for f in tests/*.test.sh; do
+            echo "::group::$f"
+            bash "$f"
+            echo "::endgroup::"
+          done
+      - name: Run Cursor hook fixtures (if the harness has landed)
+        run: |
+          set -euo pipefail
+          # scripts/test-cursor-hooks.sh ships with the .cursor/ implementer
+          # harness (ADR 0006), which may not be merged yet on every branch.
+          # Guard on file existence so CI is green both before and after that
+          # merge. The script shadows pnpm/make/biome/oxlint with fakes on a
+          # temp PATH, so no extra toolchain install is needed here — only jq,
+          # which ubuntu-latest ships preinstalled.
+          if [ -f scripts/test-cursor-hooks.sh ]; then
+            bash scripts/test-cursor-hooks.sh
+          else
+            echo "scripts/test-cursor-hooks.sh not present on this branch yet — skipping"
+          fi
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck (error-level gate)
+        run: |
+          set -euo pipefail
+          # Pinned to --severity=error as a warning-level backstop: style/info
+          # findings (e.g. SC1091 for sourced lib files) are noisy across the
+          # bash+jq hook scripts and shouldn't block CI yet. Tightening to
+          # warning/style severity is future work once existing scripts have
+          # been cleaned up incrementally.
+          shopt -s nullglob
+          files=(scripts/*.sh .claude/hooks/*.sh .claude/hooks/lib/*.sh .codex/hooks/*.sh .codex/hooks/lib/*.sh)
+          if [ -d .cursor/hooks ]; then
+            while IFS= read -r -d '' f; do files+=("$f"); done < <(find .cursor/hooks -name '*.sh' -print0)
+          fi
+          echo "Checking: ${files[*]}"
+          shellcheck --severity=error "${files[@]}"
