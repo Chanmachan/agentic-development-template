@@ -15,3 +15,15 @@ pre-commit:
     #   run: golangci-lint run {staged_files}
     # typecheck:
     #   run: npm run typecheck  # or: mypy . / go vet ./...
+
+commit-msg:
+  commands:
+    check-prefix:
+      run: |
+        if ! head -1 {1} | grep -qE '^(feat|fix|update|refactor|style|docs|test|chore|del|perf|ci): .+$|^(Merge|Revert) '; then
+          echo "Commit message must follow .claude/rules/git.md format"
+          echo "  Format: prefix: short description (single line, no body/footer)"
+          echo "  Allowed prefixes: feat, fix, update, refactor, style, docs, test, chore, del, perf, ci"
+          echo "  Merge and Revert commits are also allowed."
+          exit 1
+        fi
