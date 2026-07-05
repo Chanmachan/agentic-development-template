@@ -1,7 +1,7 @@
 # Agentic Development Template
 
 A template repository for AI-assisted development with [Claude Code](https://code.claude.com) / Codex.  
-Harness Engineering best practices — Hooks, Linter, ADR, and guardrails — are built in from day one.
+Harness Engineering best practices — Hooks, Linter, ADR, CI, and guardrails — are built in from day one.
 
 > ⚠️ Update this README as your project evolves.
 
@@ -102,6 +102,11 @@ codex    # Codex
 ├── CLAUDE.local.md        # (optional, gitignored) personal project notes
 ├── lefthook.yml           # Pre-commit hook configuration
 │
+├── .github/
+│   ├── workflows/ci.yml   # CI: doc-health, tests/*.test.sh, shellcheck (see ADR 0007)
+│   ├── dependabot.yml     # Weekly github-actions dependency updates
+│   └── pull_request_template.md
+│
 ├── .claude/
 │   ├── settings.json      # Claude Code Hook & permission settings
 │   ├── agents/            # Subagents (planner, code-reviewer, investigator)
@@ -168,9 +173,25 @@ These run automatically when the configured agent writes code:
 | Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins. `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
 | Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
-| Before commit (Lefthook) | Checks `AGENTS.md` line count and ADR freshness |
+| Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
+| Before commit (Lefthook `commit-msg`) | Rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`; `Merge`/`Revert` exempted) |
+| On every PR / push to `main` (GitHub Actions) | Agent-independent backstop: doc-health, the `tests/*.test.sh` suite, and shellcheck re-run in CI regardless of whether local hooks ran — see ADR 0007 |
 
 `check-doc-health.sh` warns/errors on ADR staleness based on `DOC_HEALTH_WARN_DAYS` (default `14`) and `DOC_HEALTH_ERROR_DAYS` (default `30`) days since `Last-validated`. Non-numeric values fall back to the default with a WARN.
+
+---
+
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every pull request and push to `main`, independent of whether the agent's local hooks fired:
+
+| Job | What it checks |
+|-----|-----------------|
+| `doc-health` | `bash scripts/check-doc-health.sh` — same check as the lefthook `pre-commit` hook |
+| `tests` | Every `tests/*.test.sh`, plus `scripts/test-cursor-hooks.sh` if present (guarded by a file-existence check so CI stays green whether or not the `.cursor/` harness has landed on a given branch) |
+| `shellcheck` | `scripts/*.sh`, `.claude/hooks/**/*.sh`, `.codex/hooks/**/*.sh`, `.cursor/hooks/**/*.sh` (only globs that exist) at `--severity=error` — a warning-level gate for now; tightening it is future work |
+
+This is a language-agnostic template with no application code yet, so CI only covers the template's own testable surface. Add lint/typecheck/build/test jobs for your stack once you've filled in `docs/spec.md` and picked a language (see the Checklist below). See ADR 0007 for the rationale.
 
 ---
 
