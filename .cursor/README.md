@@ -59,7 +59,7 @@ Cursor の hook は6イベント(`beforeShellExecution` / `beforeMCPExecution` /
 | `protect-shell.sh` | `beforeShellExecution` | `.env`/鍵を触るシェル(`cat .env` 等の抜け道)を拒否 | `permission: deny` |
 | `post-lint.sh` | `afterFileEdit` | 編集後のファイルを format(既定 TS/JS = `biome` + `oxlint`) | 観測のみ |
 | `stop-check.sh` | `stop` | 終了時に lint + typecheck + test、失敗なら `followup_message` で続行を促す | followup 注入 |
-| `lib/protected.sh` | — | 保護判定の共有ロジック(6フックすべてが source; deny/hook_debug)+ `CURSOR_HOOK_DEBUG` 捕捉 | — |
+| `lib/protected.sh` | — | `scripts/lib/protected.sh` を source する thin wrapper (deny/hook_debug のみ保持)。共有ライブラリのロードに失敗した場合は fail-closed で deny JSON を返す | — |
 | `lib/profile.sh` | — | `HOOK_PROFILE`(minimal/standard/strict)ゲート。既定 standard で6フック有効 | — |
 
 設計の要点:
