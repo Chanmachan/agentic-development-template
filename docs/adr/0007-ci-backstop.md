@@ -32,16 +32,22 @@
 2. **tests** — `tests/*.test.sh` を全て実行する。加えて `scripts/test-cursor-hooks.sh` が存在すれば
    (`.cursor/` 実装担当ハーネスが未マージのブランチでは存在しないため、ファイル存在チェックでガードする)
    それも実行する。
-3. **shellcheck** — `scripts/*.sh` / `.claude/hooks/**/*.sh` / `.codex/hooks/**/*.sh` /
-   `.cursor/hooks/**/*.sh` (存在するものだけ) に対して `--severity=error` で実行する。style/info レベルの
-   指摘 (例: `.sh` を source する際の SC1091) は今回スコープ外とし、まずはエラーレベルのみをブロッキングに
-   する warning-level gate として導入する。厳格化 (`--severity=warning` 化や個別 ID の是正) は将来の課題。
+3. **shellcheck** — `scripts/*.sh`、`.claude/hooks/*.sh` と `.claude/hooks/lib/*.sh` (明示した2階層、再帰
+   はしない)、`.codex/hooks/*.sh` と `.codex/hooks/lib/*.sh` (同じく2階層)、`.cursor/hooks` が存在する場合は
+   `find` で `.cursor/hooks/**/*.sh` を再帰的に列挙 — に対して `--severity=error` で実行する。style/info
+   レベルの指摘 (例: `.sh` を source する際の SC1091) は今回スコープ外とし、まずはエラーレベルのみを
+   ブロッキングにする warning-level gate として導入する。厳格化 (`--severity=warning` 化や個別 ID の是正)
+   は将来の課題。
 
 あわせて `lefthook.yml` に `commit-msg` フックを追加し、`.claude/rules/git.md` が定めるコミットメッセージ
-規約 (`prefix: description`、prefix は `feat|fix|update|refactor|style|docs|test|chore|del|perf|ci`)
-を強制する。`Merge ...` / `Revert ...` は例外的に許可する。CI 自体はコミット単位でなく PR 差分単位の
+規約 (`prefix: description`、prefix は `feat|fix|update|refactor|style|docs|test|chore|del|perf|ci`、
+本文・フッターなしの単一行) を強制する。1行目のプレフィックス検証に加え、2行目以降に空行以外の内容が
+あれば reject する (末尾の空行のみは許容)。`Merge ...` / `Revert ...` は例外的に許可し、この場合は複数行の
+本文 (git が自動生成するマージ元一覧など) を丸ごと許容する。CI 自体はコミット単位でなく PR 差分単位の
 チェックなので、この gate は既存の pre-commit ブロックとは独立した実行単位として追加する (localpartners の
-Conventional Commits validator を本リポジトリの prefix セットに合わせて移植)。
+Conventional Commits validator を本リポジトリの prefix セットに合わせて移植)。この gate が検証しないもの:
+`fixup!`/`squash!` プレフィックスは通常のプレフィックス集合に含まれないため reject される — 本ワークフローは
+インタラクティブ rebase を前提としていないための意図した挙動であり、バグではない。
 
 `.github/dependabot.yml` (github-actions エコシステムのみ、週次) と `.github/pull_request_template.md`
 (`.claude/rules/git.md` の PR テンプレートと同一構造) も本 ADR のスコープで追加する。
