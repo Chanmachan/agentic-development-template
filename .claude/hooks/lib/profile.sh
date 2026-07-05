@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HOOK_PROFILE gate for Claude Code hooks.
+# HOOK_PROFILE gate for agent hooks.
 #
 # Usage (source-only — do not execute directly):
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/profile.sh"
