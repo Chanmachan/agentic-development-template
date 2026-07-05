@@ -152,7 +152,7 @@ codex    # Codex
 │   ├── sync-tasks.sh        # Read/upsert the tasks.jsonl registry (locked, atomic)
 │   └── sync-local-docs.sh   # Worktree setup: symlink tasks/ + copy gitignored docs
 │
-├── src/                   # Source code (structure per your language/framework)
+├── src/                   # Your application code — add this once you start building
 └── tests/                 # Test code
 ```
 
@@ -169,6 +169,8 @@ These run automatically when the configured agent writes code:
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
 | Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | Before commit (Lefthook) | Checks `AGENTS.md` line count and ADR freshness |
+
+`check-doc-health.sh` warns/errors on ADR staleness based on `DOC_HEALTH_WARN_DAYS` (default `14`) and `DOC_HEALTH_ERROR_DAYS` (default `30`) days since `Last-validated`. Non-numeric values fall back to the default with a WARN.
 
 ---
 
@@ -222,13 +224,14 @@ alias cc-debug='claude --append-system-prompt "$(cat contexts/debug.md)"'
 
 ## Code Review
 
-Four mechanisms with different cost/depth trade-offs. Pick by context, not habit.
+Five mechanisms with different cost/depth trade-offs. Pick by context, not habit.
 
 | Mechanism | Where | When to use |
 |-----------|-------|-------------|
 | `code-review` skill | Main conversation | Short diffs (~few hundred lines), inline self-review before commit |
 | `code-reviewer` subagent | Isolated read-only context | Single-perspective review of a large diff that would pollute the main context |
 | `multi-review` workflow | 6 isolated contexts in parallel | Full PR review. 6 specialists (correctness / security / tests / performance / readability / docs-adr) evaluate independently and a coordinator merges findings |
+| `review-cycle` command | Main conversation, orchestrates subagents | Run review→fix→re-review automatically until no actionable findings remain (max 3 rounds) |
 | External independent review | Tool-dependent | Pre-merge final gate when independent verification is needed |
 
 `multi-review` is the default for PR review. Each reviewer lives in `.claude/agents/reviewers/<angle>.md` for Claude Code and `.codex/agents/review-<angle>.toml` for Codex, with read-only intent and a fixed-shape body (Mission / Checklist / Process / Output / Rules). The `docs-adr` reviewer is adaptive: it auto-skips ADR/spec/rule checks when those files are absent, so the reviewer setup is portable to other repositories.

@@ -2,7 +2,7 @@
 name: review-performance
 description: Use when reviewing a diff, PR, or staged changes for performance concerns only — algorithmic complexity, N+1 queries, allocation churn, hot-path I/O, caching, memory footprint. Typically spawned in parallel by /multi-review; may also be invoked directly when performance is the only angle of interest. Returns priority-ranked findings (Blocking/Suggestion/Nit) limited to performance; does NOT comment on correctness, tests, security, readability, or docs/ADR — those are owned by sibling reviewers.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: opus
 ---
 
 # Performance Reviewer

@@ -2,7 +2,7 @@
 name: review-tests
 description: Use when reviewing a diff, PR, or staged changes for test quality concerns only — coverage of behavior change, assertion quality, mock appropriateness, determinism, boundary case coverage. Typically spawned in parallel by /multi-review; may also be invoked directly when test discipline is the only angle of interest. Returns priority-ranked findings (Blocking/Suggestion/Nit) limited to tests; does NOT comment on correctness, security, performance, readability, or docs/ADR — those are owned by sibling reviewers.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: opus
 ---
 
 # Tests Reviewer

@@ -9,8 +9,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOK="$REPO_ROOT/scripts/check-doc-health.sh"
 
+CLEANUP_DIRS=""
+cleanup() { rm -rf $CLEANUP_DIRS; }
+trap cleanup EXIT
+
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP"
 
 cat >"$TMP/AGENTS.md" <<'EOF'
 # Fixture
@@ -64,3 +68,213 @@ if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 echo "OK: doc-health pointer check filters slash commands / brace / shell snippets"
+
+# ── Section 2: ADR staleness thresholds ──────────────────────────────────────
+# Set up a fixture docs/adr/ with ADRs at known ages.
+
+TMP2="$(mktemp -d)"
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP2"
+
+mkdir -p "$TMP2/docs/adr"
+
+# Helper: generate a date N days ago in YYYY-MM-DD format (bash 3.2 compatible)
+days_ago() {
+  local n="$1"
+  if date -v -"${n}"d +%Y-%m-%d 2>/dev/null; then
+    return
+  fi
+  # GNU date fallback
+  date -d "$n days ago" +%Y-%m-%d
+}
+
+DATE_10=$(days_ago 10)
+DATE_20=$(days_ago 20)
+DATE_35=$(days_ago 35)
+
+cat >"$TMP2/docs/adr/0001-old.md" <<EOF
+# ADR 0001
+- Last-validated: $DATE_10
+EOF
+
+cat >"$TMP2/docs/adr/0002-warn.md" <<EOF
+# ADR 0002
+- Last-validated: $DATE_20
+EOF
+
+cat >"$TMP2/docs/adr/0003-error.md" <<EOF
+# ADR 0003
+- Last-validated: $DATE_35
+EOF
+
+# 2a. Default thresholds: warn=14, error=30
+# 10 days → no message; 20 days → WARN; 35 days → ERROR
+output2a="$(cd "$TMP2" && bash "$HOOK" 2>&1 || true)"
+fail_2a=0
+
+if grep -qF "0001-old" <<<"$output2a"; then
+  echo "FAIL [2a]: 10-day ADR should not appear with default thresholds"
+  fail_2a=1
+fi
+if ! grep -q "WARN.*0002-warn" <<<"$output2a"; then
+  echo "FAIL [2a]: 20-day ADR should WARN with default thresholds (WARN_DAYS=14)"
+  fail_2a=1
+fi
+if ! grep -q "ERROR.*0003-error" <<<"$output2a"; then
+  echo "FAIL [2a]: 35-day ADR should ERROR with default thresholds (ERROR_DAYS=30)"
+  fail_2a=1
+fi
+
+if [ "$fail_2a" -ne 0 ]; then
+  echo "---"
+  echo "Actual output [2a]:"
+  echo "$output2a"
+  exit 1
+fi
+echo "OK: default thresholds warn=14 / error=30"
+
+# 2b. Env-configurable overrides: DOC_HEALTH_WARN_DAYS=8 DOC_HEALTH_ERROR_DAYS=15
+# Reuses the TMP2 fixture from 2a (same three ADRs at 10/20/35 days) but with
+# tighter thresholds, to prove the env vars actually move the boundary.
+# 10 days → WARN only (>=8, <15); 20 days → ERROR (>=15); 35 days → ERROR
+output2b="$(cd "$TMP2" && DOC_HEALTH_WARN_DAYS=8 DOC_HEALTH_ERROR_DAYS=15 bash "$HOOK" 2>&1 || true)"
+fail_2b=0
+
+if ! grep -q "WARN.*0001-old" <<<"$output2b"; then
+  echo "FAIL [2b]: 10-day ADR should WARN with DOC_HEALTH_WARN_DAYS=8"
+  fail_2b=1
+fi
+if grep -q "ERROR.*0001-old" <<<"$output2b"; then
+  echo "FAIL [2b]: 10-day ADR should not ERROR with DOC_HEALTH_ERROR_DAYS=15"
+  fail_2b=1
+fi
+if ! grep -q "ERROR.*0002-warn" <<<"$output2b"; then
+  echo "FAIL [2b]: 20-day ADR should ERROR with DOC_HEALTH_ERROR_DAYS=15"
+  fail_2b=1
+fi
+
+if [ "$fail_2b" -ne 0 ]; then
+  echo "---"
+  echo "Actual output [2b]:"
+  echo "$output2b"
+  exit 1
+fi
+echo "OK: env-override thresholds DOC_HEALTH_WARN_DAYS=8 DOC_HEALTH_ERROR_DAYS=15"
+
+# ── Section 3: 0000-prefixed ADRs excluded from staleness check ───────────────
+TMP3="$(mktemp -d)"
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP3"
+
+mkdir -p "$TMP3/docs/adr"
+
+DATE_OLD=$(days_ago 60)
+cat >"$TMP3/docs/adr/0000-adr-template.md" <<EOF
+# ADR 0000: Template
+- Last-validated: $DATE_OLD
+EOF
+
+output3="$(cd "$TMP3" && bash "$HOOK" 2>&1 || true)"
+fail_3=0
+
+if grep -qF "0000-adr-template" <<<"$output3"; then
+  echo "FAIL [3]: 0000-prefixed ADR template should be excluded from staleness check"
+  fail_3=1
+fi
+
+if [ "$fail_3" -ne 0 ]; then
+  echo "---"
+  echo "Actual output [3]:"
+  echo "$output3"
+  exit 1
+fi
+echo "OK: 0000-prefixed ADR template excluded from staleness check"
+
+# ── Section 4: -ge boundary fixtures (exactly 13/14/29/30 days) ──────────────
+# Locks the documented semantics: diff_days -ge ERROR_DAYS → ERROR,
+# diff_days -ge WARN_DAYS → WARN, otherwise silent. Default thresholds (14/30).
+TMP4="$(mktemp -d)"
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP4"
+
+mkdir -p "$TMP4/docs/adr"
+
+DATE_13=$(days_ago 13)
+DATE_14=$(days_ago 14)
+DATE_29=$(days_ago 29)
+DATE_30=$(days_ago 30)
+
+cat >"$TMP4/docs/adr/0001-d13.md" <<EOF
+# ADR: 13 days
+- Last-validated: $DATE_13
+EOF
+cat >"$TMP4/docs/adr/0002-d14.md" <<EOF
+# ADR: 14 days
+- Last-validated: $DATE_14
+EOF
+cat >"$TMP4/docs/adr/0003-d29.md" <<EOF
+# ADR: 29 days
+- Last-validated: $DATE_29
+EOF
+cat >"$TMP4/docs/adr/0004-d30.md" <<EOF
+# ADR: 30 days
+- Last-validated: $DATE_30
+EOF
+
+output4="$(cd "$TMP4" && bash "$HOOK" 2>&1 || true)"
+fail_4=0
+
+if grep -qF "0001-d13" <<<"$output4"; then
+  echo "FAIL [4]: 13-day ADR should be silent (below WARN_DAYS=14)"
+  fail_4=1
+fi
+if ! grep -q "WARN.*0002-d14" <<<"$output4"; then
+  echo "FAIL [4]: exactly 14-day ADR should WARN (-ge WARN_DAYS)"
+  fail_4=1
+fi
+if grep -q "ERROR.*0002-d14" <<<"$output4"; then
+  echo "FAIL [4]: exactly 14-day ADR should not ERROR"
+  fail_4=1
+fi
+if ! grep -q "WARN.*0003-d29" <<<"$output4"; then
+  echo "FAIL [4]: exactly 29-day ADR should WARN"
+  fail_4=1
+fi
+if grep -q "ERROR.*0003-d29" <<<"$output4"; then
+  echo "FAIL [4]: exactly 29-day ADR should not ERROR (below ERROR_DAYS=30)"
+  fail_4=1
+fi
+if ! grep -q "ERROR.*0004-d30" <<<"$output4"; then
+  echo "FAIL [4]: exactly 30-day ADR should ERROR (-ge ERROR_DAYS)"
+  fail_4=1
+fi
+
+if [ "$fail_4" -ne 0 ]; then
+  echo "---"
+  echo "Actual output [4]:"
+  echo "$output4"
+  exit 1
+fi
+echo "OK: -ge boundary semantics — 13d silent, 14d WARN, 29d WARN-not-ERROR, 30d ERROR"
+
+# ── Section 5: non-numeric threshold env falls back, gate stays enabled ──────
+# Reuses the TMP2 fixture (0003-error.md is 35 days old). A garbage
+# DOC_HEALTH_ERROR_DAYS must not silently disable the staleness gate: the
+# script should WARN about the bad value and still fall back to the default
+# (30), so the 35-day ADR keeps erroring.
+output5="$(cd "$TMP2" && DOC_HEALTH_ERROR_DAYS=abc bash "$HOOK" 2>&1 || true)"
+fail_5=0
+
+if ! grep -qi "DOC_HEALTH_ERROR_DAYS" <<<"$output5"; then
+  echo "FAIL [5]: non-numeric DOC_HEALTH_ERROR_DAYS should produce a fallback WARN"
+  fail_5=1
+fi
+if ! grep -q "ERROR.*0003-error" <<<"$output5"; then
+  echo "FAIL [5]: 35-day ADR must still ERROR — gate must not be silently disabled"
+  fail_5=1
+fi
+
+if [ "$fail_5" -ne 0 ]; then
+  echo "---"
+  echo "Actual output [5]:"
+  echo "$output5"
+  exit 1
+fi
+echo "OK: non-numeric DOC_HEALTH_ERROR_DAYS falls back to default and gate stays enabled"
