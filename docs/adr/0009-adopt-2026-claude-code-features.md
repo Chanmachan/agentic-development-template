@@ -59,6 +59,22 @@ Given the asymmetric risk — a hook that's merely a no-op miss vs. one that sil
 harness capability for every future session — this ADR **declines** to hook `WorktreeCreate`/`WorktreeRemove`
 at all.
 
+**Correction (post-review, same day)**: the paragraph below originally described the wrapper script's own
+root-derivation (via `BASH_SOURCE[0]`) as making the whole hook "cwd-independent" — but the wiring in
+`.claude/settings.json` invoked it with a bare relative path (`bash .claude/hooks/worktree-setup.sh`). A
+relative invocation only resolves when the *hook's own cwd* already happens to be the repo/worktree root;
+from any other cwd, bash fails to even locate the file (`No such file or directory`) before the script's
+internal cwd-independent logic ever runs. So the claim was true for the script's internal logic but not for
+the invocation as a whole. Fixed by invoking with
+`bash "${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/worktree-setup.sh"` in both the `SessionStart` and
+`SubagentStart` entries: `$CLAUDE_PROJECT_DIR` is an absolute path Claude Code exports for the session, so
+the invocation itself no longer depends on cwd; the `${CLAUDE_PROJECT_DIR:-.}` fallback preserves the old
+(cwd-dependent) relative behavior on Claude Code versions that don't set the variable, rather than hard-
+failing. Re-verified against a throwaway two-worktree fixture (main + child) invoked from a cwd that was
+neither worktree's root: the old relative wiring failed outright to locate the script, the new absolute
+wiring succeeded and produced the correct symlink. See ADR 0008 (f-1) for the accompanying extension of the
+self-protection perimeter to `.claude/settings.json` itself, motivated by this same review.
+
 Instead, `.claude/hooks/worktree-setup.sh` is wired to **`SessionStart`** (matcher `startup`) and
 **`SubagentStart`** (no matcher), both confirmed as purely additive, "Context only" events with no
 decision/blocking control — `SessionStart`/`SubagentStart` failures render only as a swallowed "hook error"
@@ -71,7 +87,11 @@ hook's `cwd` (confirmed by docs to be the worktree's own directory for `SessionS
 independently re-confirmed for `SubagentStart`): it derives the worktree root from its own on-disk script
 path instead (`.claude/hooks/worktree-setup.sh` is always two directories below the worktree root, in every
 checkout), then runs `sync-local-docs.sh` there — verified locally against a throwaway two-worktree fixture
-(main + child), confirming both the correct-worktree symlink and the main-checkout no-op. The wrapper is
+(main + child), confirming both the correct-worktree symlink and the main-checkout no-op. The wrapper
+originally discarded all of `sync-local-docs.sh`'s output (`>/dev/null 2>&1`); it now greps that output for
+the one actionable warning (a real, non-symlink `tasks/` directory already present, which blocks the sync)
+and re-emits just that line to its own stderr, so the one failure mode a developer could actually act on
+isn't silently lost — everything else stays suppressed, and the hook still always exits 0. The wrapper is
 deliberately **not** profile-gated via `lib/profile.sh` — every other hook in `.claude/hooks/` skips itself
 outside its assigned `HOOK_PROFILE` tier, but this one is one-time environment setup (symlinking `tasks/`),
 not a behavior guardrail; gating it out of `minimal` would leave prototyping worktrees without task tracking,
@@ -148,7 +168,8 @@ documented path for session-start automation/aliases (unaffected — it doesn't 
   fail-open/fail-closed choice made around it, mirrored here for `WorktreeCreate`'s payload and
   `SubagentStart`'s contract)
 - ADR 0008: 3ハーネス間の protected-path 判定を共有ライブラリへ集約 (e) — skills-dir consolidation declined,
-  not revisited here
+  not revisited here; (f-1) — self-protection perimeter extended to `worktree-setup.sh` and
+  `.claude/settings.json` introduced by this ADR, plus the other hook-wiring files
 - `code.claude.com/docs/en/memory` — path-specific rules (`paths` frontmatter)
 - `code.claude.com/docs/en/hooks` — `WorktreeCreate`/`WorktreeRemove`/`SessionStart`/`SubagentStart` event
   contracts, exit-code behavior, decision-control tables
