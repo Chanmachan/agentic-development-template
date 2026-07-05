@@ -183,13 +183,13 @@ These run automatically when the configured agent writes code:
 
 ## Continuous Integration
 
-`.github/workflows/ci.yml` runs on every pull request and push to `main`, independent of whether the agent's local hooks fired:
+`.github/workflows/ci.yml` runs on pull requests targeting `main` と `main` への push, independent of whether the agent's local hooks fired:
 
 | Job | What it checks |
 |-----|-----------------|
 | `doc-health` | `bash scripts/check-doc-health.sh` — same check as the lefthook `pre-commit` hook |
 | `tests` | Every `tests/*.test.sh`, plus `scripts/test-cursor-hooks.sh` if present (guarded by a file-existence check so CI stays green whether or not the `.cursor/` harness has landed on a given branch) |
-| `shellcheck` | `scripts/*.sh`, `.claude/hooks/**/*.sh`, `.codex/hooks/**/*.sh`, `.cursor/hooks/**/*.sh` (only globs that exist) at `--severity=error` — a warning-level gate for now; tightening it is future work |
+| `shellcheck` | `scripts/*.sh`; `.claude/hooks/*.sh` and `.claude/hooks/lib/*.sh` (two explicit levels, not recursive); `.codex/hooks/*.sh` and `.codex/hooks/lib/*.sh` (same, two levels); `.cursor/hooks/**/*.sh` recursively via `find` if `.cursor/hooks` exists — at `--severity=error`, a warning-level gate for now; tightening it is future work |
 
 This is a language-agnostic template with no application code yet, so CI only covers the template's own testable surface. Add lint/typecheck/build/test jobs for your stack once you've filled in `docs/spec.md` and picked a language (see the Checklist below). See ADR 0007 for the rationale.
 
