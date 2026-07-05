@@ -54,12 +54,12 @@ Cursor の hook は6イベント(`beforeShellExecution` / `beforeMCPExecution` /
 | フック | Cursor イベント(matcher) | 役割 | ブロック |
 |---|---|---|---|
 | `enforce-model.sh` | `beforeSubmitPrompt` | Composer 以外のモデルへのプロンプト送信を拒否 | `permission: deny` |
-| `protect-config.sh` | `preToolUse` (`Write`) | 保護ファイル(設定/lockfile/`.env*`)への**編集を事前拒否** | `permission: deny` |
-| `protect-read.sh` | `beforeReadFile` (`Read`) | **秘密ファイルの読取を拒否**(`.env*`/鍵/credential)→ 漏洩防止 | `permission: deny` |
+| `protect-config.sh` | `preToolUse` (`Write\|Edit\|MultiEdit\|ApplyPatch`) | 保護ファイル(設定/lockfile/`.env*`)への**編集を事前拒否** | `permission: deny` |
+| `protect-read.sh` | `beforeReadFile` (`Read\|TabRead`) | **秘密ファイルの読取を拒否**(`.env*`/鍵/credential)→ 漏洩防止 | `permission: deny` |
 | `protect-shell.sh` | `beforeShellExecution` | `.env`/鍵を触るシェル(`cat .env` 等の抜け道)を拒否 | `permission: deny` |
 | `post-lint.sh` | `afterFileEdit` | 編集後のファイルを format(既定 TS/JS = `biome` + `oxlint`) | 観測のみ |
 | `stop-check.sh` | `stop` | 終了時に lint + typecheck + test、失敗なら `followup_message` で続行を促す | followup 注入 |
-| `lib/protected.sh` | — | 保護判定の共有ロジック(3ガードが source)+ `CURSOR_HOOK_DEBUG` 捕捉 | — |
+| `lib/protected.sh` | — | 保護判定の共有ロジック(6フックすべてが source; deny/hook_debug)+ `CURSOR_HOOK_DEBUG` 捕捉 | — |
 | `lib/profile.sh` | — | `HOOK_PROFILE`(minimal/standard/strict)ゲート。既定 standard で6フック有効 | — |
 
 設計の要点:
@@ -69,8 +69,10 @@ Cursor の hook は6イベント(`beforeShellExecution` / `beforeMCPExecution` /
   強制を無効化できる。モデルフィールドがペイロードに無い場合は fail-open(セッションを壊さない)。
 - **秘密保護は読取(`beforeReadFile`)が要**。`.env*` は gitignore で commit/CI に網が無く、しかも
   読まれた時点で内容がコンテキストに漏れる。Cursor は読取を事前拒否できるので Claude より綺麗に塞げる。
-- **書込の事前ブロックは `preToolUse`(matcher=`Write`)**。matcher は tool 種別(`Write`/`Read`/`Shell`/
-  `MCP:*`)で指定する点に注意(verb 文字列ではない)。
+- **書込の事前ブロックは `preToolUse`(matcher=`Write|Edit|MultiEdit|ApplyPatch`)**。matcher は tool 種別
+  (`Write`/`Read`/`Shell`/`MCP:*`)で指定する点に注意(verb 文字列ではない)。`Edit`/`MultiEdit`/
+  `ApplyPatch` は将来 Cursor が編集系 tool を細分化した場合への speculative な備えで、実在しない tool
+  名を足しても無害(マッチしないだけ)。実際の tool 種別の taxonomy は初回ハンドオフで確認する。
 - **stop-check は full**(lint+type+test)で `.claude`/`.codex` とパリティ。`loop_count` で無限ループを防止
   (既定上限 2、`CURSOR_STOP_LOOP_LIMIT` で調整可)。
 - `strict` は ADR 0003 では `suggest-compact` 等も含むが Cursor へ未移植なので、本ハーネスでは
@@ -127,6 +129,9 @@ unset CURSOR_HOOK_DEBUG
 - `=== beforeShellExecution ===` で `cat .env` 等が拒否されるか。
 - `=== afterFileEdit ===` が編集後に出て format が走るか / `=== stop ===` が終了時に出て、
   失敗時 followup が回り `loop_count` で無限ループしないか。
+- `preToolUse` の matcher (`Write|Edit|MultiEdit|ApplyPatch`) が実際の書込/編集系 tool 種別を
+  網羅しているか確認する。`Edit`/`MultiEdit`/`ApplyPatch` は speculative な備えなので、実機の
+  tool 名がこの4つ以外(あるいは一部のみ)なら matcher をログの実名に合わせて直す。
 
 > 既知の注意: `preToolUse` の matcher は tool 種別(`Write` 等)で指定する。verb 文字列
 > (`"edit|write|..."`)で書くと発火しないため、発火しないときはまず matcher を疑う。

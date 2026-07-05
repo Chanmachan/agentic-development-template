@@ -56,8 +56,9 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
      世代ごとにサードパーティモデルに振られる可能性があり、その場合は API クレジットを消費する。
    - 実装担当として速度・コストのトレードオフを最適化するには、Composer 2.5 (standard tier) を固定が
      最も合理的(fast tier は 1 トークン当たりのプール消費が大きい)。
-   - `beforeSubmitPrompt` ペイロードはすべての hook イベントに `model` フィールドを含む
-     (cursor.com/docs/agent/hooks 2026-07-03 確認)ため、プロンプト送信直前でモデルを検査できる。
+   - Cursor のドキュメント (cursor.com/docs/agent/hooks) は `model` フィールドがすべての hook イベントの
+     ペイロードに含まれると記載しているが、実際のキー名・値は初回ハンドオフで実機確認するまで未検証
+     (`.model` → `.model_id` の順で読み、フィールド自体が無ければ fail-open するのはこのドリフトへの備え)。
    - IDE のモデルピッカーはモード切替のたびに Auto にリセットされるため、設定での固定は不完全。
      フックによるチェックが唯一の強制手段。
    - **ポリシー**: `model` スラグが `CURSOR_REQUIRED_MODEL_PREFIX`(既定 `composer`) から始まらなければ
