@@ -7,7 +7,7 @@ See: @AGENTS.md
 1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/{id}-todo.md` に残し、`tasks/tasks.jsonl` に状態行を追記する (`planned`/`in_progress`)。
 2. **Implement** — `tdd` skill に従い、失敗するテスト → 最小実装 → リファクタの順で進める。
 3. **Verify** — lint / typecheck / test を通す (`stop-check.sh` が強制)。
-4. **Commit** — `.claude/rules/git.md` に従う。PR レビュー対応は `/fix-review` コマンドを使う。
+4. **Commit** — `.claude/rules/git.md` に従う。PR レビュー対応は `/fix-review` コマンドを使う。指摘ゼロまで自動で回したいときは `/review-cycle` を使う。
 5. **Archive** — MERGED したら `tasks/tasks.jsonl` の当該行を `status:"done"` + `done` パスに更新し、`tasks/{id}-todo.md` の内容を `tasks/done/{id}.md` に移す。`id` は内容が一目で分かる slug。
 
 ## Task tracking

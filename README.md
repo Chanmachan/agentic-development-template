@@ -218,13 +218,14 @@ alias cc-debug='claude --append-system-prompt "$(cat contexts/debug.md)"'
 
 ## Code Review
 
-Four mechanisms with different cost/depth trade-offs. Pick by context, not habit.
+Five mechanisms with different cost/depth trade-offs. Pick by context, not habit.
 
 | Mechanism | Where | When to use |
 |-----------|-------|-------------|
 | `code-review` skill | Main conversation | Short diffs (~few hundred lines), inline self-review before commit |
 | `code-reviewer` subagent | Isolated read-only context | Single-perspective review of a large diff that would pollute the main context |
 | `multi-review` workflow | 6 isolated contexts in parallel | Full PR review. 6 specialists (correctness / security / tests / performance / readability / docs-adr) evaluate independently and a coordinator merges findings |
+| `review-cycle` command | Main conversation, orchestrates subagents | Run review→fix→re-review automatically until no actionable findings remain (max 3 rounds) |
 | External independent review | Tool-dependent | Pre-merge final gate when independent verification is needed |
 
 `multi-review` is the default for PR review. Each reviewer lives in `.claude/agents/reviewers/<angle>.md` for Claude Code and `.codex/agents/review-<angle>.toml` for Codex, with read-only intent and a fixed-shape body (Mission / Checklist / Process / Output / Rules). The `docs-adr` reviewer is adaptive: it auto-skips ADR/spec/rule checks when those files are absent, so the reviewer setup is portable to other repositories.
