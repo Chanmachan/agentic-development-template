@@ -12,7 +12,32 @@
 # helper; enforce-model.sh (beforeSubmitPrompt) sources it for hook_debug()
 # and deny().
 
-source "$(dirname "${BASH_SOURCE[0]}")/../../../scripts/lib/protected.sh"
+_PROTECTED_LIB="$(dirname "${BASH_SOURCE[0]}")/../../../scripts/lib/protected.sh"
+
+# Fail CLOSED if the shared classification lib can't be loaded: without it none
+# of the three blockable guards (protect-config/read/shell) can tell protected
+# paths from ordinary ones, so silently continuing would defeat them. deny()
+# below isn't defined yet at this point (it's defined further down in this
+# same file), so the deny response is hand-rolled here instead of calling it.
+#
+# `set +e`/`set -e` bracket the source call because bash treats "file not
+# found" in a special builtin like `source` as a fatal shell error that exits
+# immediately under the caller's `set -e` regardless of `if`/`||` guards (a
+# long-standing quirk, reproducible on the bash 3.2 shipped with macOS) — the
+# failure has to be caught with errexit off, not with a conditional.
+set +e
+source "$_PROTECTED_LIB" 2>/dev/null
+_PROTECTED_LIB_RC=$?
+set -e
+if [ "$_PROTECTED_LIB_RC" -ne 0 ] || ! declare -F is_protected_path >/dev/null 2>&1; then
+  echo "BLOCKED: failed to load shared protected-path lib ($_PROTECTED_LIB); failing closed." >&2
+  jq -n \
+    --arg a "Security guard library failed to load; refusing to proceed until this is fixed." \
+    --arg u "Blocked: protected-path guard library is missing or broken." \
+    '{permission:"deny", agent_message:$a, user_message:$u}' 2>/dev/null || \
+    printf '%s\n' '{"permission":"deny","agent_message":"Security guard library failed to load; refusing to proceed until this is fixed.","user_message":"Blocked: protected-path guard library is missing or broken."}'
+  exit 0
+fi
 
 # Opt-in raw-input capture for verifying Cursor's real payload shapes per event.
 # No-op unless CURSOR_HOOK_DEBUG is set to a writable path.
