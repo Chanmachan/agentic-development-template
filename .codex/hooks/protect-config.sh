@@ -4,7 +4,27 @@ set -euo pipefail
 DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "$DIR/lib/profile.sh"
 hook_profile_skip protect-config
-source "$DIR/../../scripts/lib/protected.sh"
+LIB="$DIR/../../scripts/lib/protected.sh"
+
+# Fail CLOSED (not open) if the shared classification lib can't be loaded: a
+# missing/broken lib means we can no longer tell protected paths from ordinary
+# ones, and this hook's whole job is refusing edits — silently allowing
+# everything through would defeat it. exit 2 is Claude Code's blocking signal
+# (exit 1 here would be treated as non-blocking and the edit would proceed).
+#
+# `set +e`/`set -e` bracket the source call because bash treats "file not
+# found" in a special builtin like `source` as a fatal shell error that
+# exits immediately under `set -e` even inside an `if !`/`||` guard (a
+# long-standing bash quirk, reproducible on the bash 3.2 shipped with macOS) —
+# so the failure has to be caught with errexit off, not with a conditional.
+set +e
+source "$LIB" 2>/dev/null
+LIB_RC=$?
+set -e
+if [ "$LIB_RC" -ne 0 ] || ! declare -F is_protected_path >/dev/null 2>&1; then
+  echo "BLOCKED: failed to load shared protected-path lib ($LIB); failing closed." >&2
+  exit 2
+fi
 
 # Block Write/Edit/MultiEdit on lint/type/format/build configs, secrets, lockfiles,
 # and version pins. Intent: "Fix the code, not the config." — never silence errors

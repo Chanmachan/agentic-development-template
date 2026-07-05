@@ -39,6 +39,14 @@ PROTECTED_PATTERNS=(
   ".ruby-version"
   ".tool-versions"
   ".git/"
+  # Guard self-protection (ADR 0008 (f)): refuse edits to the guard's own
+  # files so a single edit can't neuter every write-protection check. These
+  # are substring matches, so each pattern covers all three harnesses' copies
+  # in one line (e.g. "protect-config.sh" matches .claude/, .codex/, AND
+  # .cursor/hooks/protect-config.sh) plus the shared lib itself.
+  "lib/protected.sh"
+  "protect-config.sh"
+  "stop-check.sh"
 )
 
 # Normalize a path so trivial variants can't dodge exact-match checks:
