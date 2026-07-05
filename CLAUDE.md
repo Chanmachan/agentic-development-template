@@ -28,13 +28,13 @@ See: @AGENTS.md
 
 ## Skills and subagents
 
-- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review` (オンデマンドロード)
+- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `context-{dev,review,research,debug}` (オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator` (委譲時にロード)
 
 ## Hook profiles and contexts
 
 - フック強度は `HOOK_PROFILE` (`minimal`/`standard`/`strict`) で切り替える。詳細は README とADR 0003。
-- セッション目的別のシステムプロンプトは `contexts/{dev,review,research,debug}.md`。`claude --append-system-prompt "$(cat contexts/dev.md)"` で注入。
+- セッション目的別のシステムプロンプトは `contexts/{dev,review,research,debug}.md`。起動時は `claude --append-system-prompt "$(cat contexts/dev.md)"`、セッション途中は `/context-dev` 等の skill で注入。
 
 ## Editing rules
 

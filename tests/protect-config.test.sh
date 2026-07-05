@@ -57,6 +57,17 @@ for HOOK in "${HOOKS[@]}"; do
     [ "$RC" -eq 2 ] && ok "deny guard self-edit $p" || bad "$p should deny (rc=$RC out=$OUT)"
   done
 
+  # Self-protection perimeter (ADR 0009): the expansion of PROTECTED_PATTERNS
+  # to cover the FULL hook perimeter, not just protect-config.sh/stop-check.sh/
+  # lib/protected.sh. Representative subset per harness-wiring file and
+  # hook-script pattern, plus the shared lib.profile.sh pattern.
+  for p in "/repo/.claude/hooks/worktree-setup.sh" "/repo/.claude/settings.json" \
+           "/repo/.cursor/hooks.json" "/repo/.codex/hooks.json" \
+           "/repo/.claude/hooks/lib/profile.sh" "/repo/.cursor/hooks/lib/profile.sh"; do
+    run_hook "$HOOK" '{"tool_input":{"file_path":"'"$p"'"}}'
+    [ "$RC" -eq 2 ] && ok "deny guard perimeter $p" || bad "$p should deny (rc=$RC out=$OUT)"
+  done
+
   echo "$label (allow cases)"
   # .env.sample / .env.template are DENIED above, not allowed: they narrow the
   # old inline "*.example/*.sample/*.template allow" rule deliberately —
@@ -69,6 +80,22 @@ for HOOK in "${HOOKS[@]}"; do
     run_hook "$HOOK" '{"tool_input":{"file_path":"'"$p"'"}}'
     [ "$RC" -eq 0 ] && ok "allow $p" || bad "$p should allow (rc=$RC out=$OUT)"
   done
+
+  # Perimeter precision (ADR 0009 A1): ".claude/settings.json" is the full
+  # relative path, not a bare "settings.json" substring — a settings.json that
+  # lives OUTSIDE .claude/ (e.g. a downstream project's .vscode/settings.json)
+  # must stay ALLOWED. Pinned here so a future edit can't accidentally widen
+  # the pattern back to a bare substring and start over-blocking.
+  run_hook "$HOOK" '{"tool_input":{"file_path":"/repo/.vscode/settings.json"}}'
+  [ "$RC" -eq 0 ] && ok "allow /repo/.vscode/settings.json (outside .claude/)" || bad "/repo/.vscode/settings.json should allow (rc=$RC out=$OUT)"
+
+  # Same precision for the hooks.json entries: ".codex/hooks.json" and
+  # ".cursor/hooks.json" are anchored FULL relative paths, not a bare
+  # "hooks.json" substring -- a downstream project's unrelated hooks.json
+  # (outside .codex/ and .cursor/) must stay ALLOWED. Pinned here so a future
+  # edit can't accidentally widen the pattern back to a bare substring.
+  run_hook "$HOOK" '{"tool_input":{"file_path":"/repo/some-tool/hooks.json"}}'
+  [ "$RC" -eq 0 ] && ok "allow /repo/some-tool/hooks.json (outside .codex/.cursor)" || bad "/repo/some-tool/hooks.json should allow (rc=$RC out=$OUT)"
 
   echo "$label (edge cases)"
   run_hook "$HOOK" 'not json'
