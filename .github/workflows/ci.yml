@@ -82,7 +82,7 @@ jobs:
           # warning/style severity is future work once existing scripts have
           # been cleaned up incrementally.
           shopt -s nullglob
-          files=(scripts/*.sh .claude/hooks/*.sh .claude/hooks/lib/*.sh .codex/hooks/*.sh .codex/hooks/lib/*.sh)
+          files=(scripts/*.sh scripts/lib/*.sh .claude/hooks/*.sh .claude/hooks/lib/*.sh .codex/hooks/*.sh .codex/hooks/lib/*.sh)
           if [ -d .cursor/hooks ]; then
             while IFS= read -r -d '' f; do files+=("$f"); done < <(find .cursor/hooks -name '*.sh' -print0)
           fi
