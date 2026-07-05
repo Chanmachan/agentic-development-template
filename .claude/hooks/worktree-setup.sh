@@ -23,8 +23,19 @@
 # failure here can never affect worktree creation or the session/subagent
 # itself. `cwd` is confirmed to be the worktree's own directory when a
 # session starts inside one, but this script does not rely on that — it
-# derives the worktree root from its own on-disk location instead, so it is
-# correct regardless of the hook's invocation cwd.
+# derives the worktree root from its own on-disk location instead (see
+# SCRIPT_DIR below), so it is correct regardless of the hook's invocation
+# cwd -- PROVIDED the wiring in .claude/settings.json invokes this script by
+# an absolute path (it uses "${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/
+# worktree-setup.sh"). If CLAUDE_PROJECT_DIR is unset (older Claude Code
+# versions), the fallback "." is relative and BASH_SOURCE[0] then only
+# resolves correctly when the hook happens to be invoked with cwd already at
+# the repo root -- this script's own cwd-independence does not by itself
+# guarantee the *invocation* is cwd-independent.
+#
+# `matcher: "startup"` on SessionStart deliberately excludes "resume"/"clear":
+# both imply a prior session already ran this setup in the same worktree, so
+# re-running it is unnecessary (the script is idempotent either way).
 #
 # Deliberately NOT profile-gated (runs in every HOOK_PROFILE, unlike the
 # other hooks in this directory): this is one-time environment setup
@@ -53,6 +64,16 @@ if [ -z "$WORKTREE_ROOT" ] || [ ! -f "$WORKTREE_ROOT/scripts/sync-local-docs.sh"
   exit 0
 fi
 
-(cd "$WORKTREE_ROOT" && bash scripts/sync-local-docs.sh) >/dev/null 2>&1
+# Run sync-local-docs.sh, but surface its one actionable warning instead of
+# fully discarding output: if the worktree already has a real tasks/
+# directory (not a symlink), the script skips the symlink and warns --
+# silently swallowing that leaves a developer with a broken tasks/ setup and
+# no signal why. Everything else sync-local-docs.sh prints (progress lines,
+# sync counts) is routine and stays suppressed. Matching on the warning's
+# distinctive Japanese substring is fine here since it's the same script's
+# own literal string, not user input. Still fail-open: no match is not an
+# error, just nothing to surface.
+SYNC_OUTPUT="$(cd "$WORKTREE_ROOT" && bash scripts/sync-local-docs.sh 2>&1)"
+printf '%s\n' "$SYNC_OUTPUT" | grep '実ディレクトリ' >&2 || true
 
 exit 0
