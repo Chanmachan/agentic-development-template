@@ -224,7 +224,9 @@ HOOK_PROFILE=strict cursor-agent --model composer-2.5  # tighten Cursor (6 hooks
 
 ## Session Contexts
 
-`contexts/*.md` are purpose-specific system prompts. For Claude Code they complement `CLAUDE.md`; for Codex they complement `AGENTS.md` and project skills. Inject one at session start when your tool supports an appended system prompt:
+`contexts/*.md` are purpose-specific system prompts. For Claude Code they complement `CLAUDE.md`; for Codex they complement `AGENTS.md` and project skills. `contexts/*.md` stays the single source; two ways to load one, depending on when you need it:
+
+**Session start / automation** — inject at launch when your tool supports an appended system prompt:
 
 ```bash
 claude --append-system-prompt "$(cat contexts/dev.md)"
@@ -239,12 +241,21 @@ alias cc-research='claude --append-system-prompt "$(cat contexts/research.md)"'
 alias cc-debug='claude --append-system-prompt "$(cat contexts/debug.md)"'
 ```
 
-| Context | Focus |
-|---------|-------|
-| `dev.md` | Plan → TDD → Verify, subagent delegation rules |
-| `review.md` | Read-only stance, Blocking/Suggestion/Nit categorization |
-| `research.md` | Comparing options, writing to `research/`, promoting to ADR |
-| `debug.md` | Reproduce → hypothesize → verify → fix loop |
+**Mid-session (Claude Code only)** — load a context interactively without restarting, via a `disable-model-invocation` skill that dynamically injects the matching `contexts/*.md` file (see ADR 0009):
+
+```
+/context-dev
+/context-review
+/context-research
+/context-debug
+```
+
+| Context | Focus | Interactive skill |
+|---------|-------|--------------------|
+| `dev.md` | Plan → TDD → Verify, subagent delegation rules | `/context-dev` |
+| `review.md` | Read-only stance, Blocking/Suggestion/Nit categorization | `/context-review` |
+| `research.md` | Comparing options, writing to `research/`, promoting to ADR | `/context-research` |
+| `debug.md` | Reproduce → hypothesize → verify → fix loop | `/context-debug` |
 
 ---
 
