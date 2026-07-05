@@ -135,11 +135,20 @@ run_postlint '{"hook_event_name":"afterFileEdit"}'
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing path is a no-op" || bad "missing path should no-op (rc=$RC)"
 # Pin current behavior when the formatters are absent from PATH: post-lint.sh
 # exits 1 with a stderr error and does not attempt to format (see its .ts|.tsx
-# branch). /usr/bin:/bin keeps jq available but excludes biome/oxlint.
-run_postlint_nopath() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; printf '%s' "$1" | PATH="/usr/bin:/bin" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
+# branch). jq must stay reachable (the hook needs it to parse stdin) while
+# biome/oxlint stay absent. /usr/bin:/bin alone assumes a system jq at
+# /usr/bin/jq, which isn't true on machines where jq is Homebrew-only (jq
+# would vanish too, and the hook would fail before it even gets to the
+# formatter check, exiting 0 instead of the expected 1). Pin jq into a
+# dedicated dir on PATH instead so the case is deterministic regardless of
+# where the host's jq lives.
+JQ_BIN="$(command -v jq)" || { bad "jq not found on PATH; cannot run missing-formatter fixture"; JQ_BIN=""; }
+JQPATH="$(mktemp -d)"
+[ -n "$JQ_BIN" ] && ln -s "$JQ_BIN" "$JQPATH/jq"
+run_postlint_nopath() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; printf '%s' "$1" | PATH="$JQPATH:/usr/bin:/bin" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
 run_postlint_nopath "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
 { [ "$RC" -eq 1 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing formatter exits 1 without formatting (pinned)" || bad "missing-formatter behavior changed (rc=$RC)"
-rm -rf "$FAKEBIN"
+rm -rf "$FAKEBIN" "$JQPATH"
 
 # ---------------------------------------------------------------------------
 # stop-check.sh — stop: followup_message on failure, loop guard
