@@ -47,6 +47,28 @@ PROTECTED_PATTERNS=(
   "lib/protected.sh"
   "protect-config.sh"
   "stop-check.sh"
+  # ADR 0009 (self-protection perimeter): the rest of the hook perimeter --
+  # every remaining hook script, the shared profile-gating lib, and the two
+  # hook-WIRING files (.claude/settings.json, .cursor/hooks.json,
+  # .codex/hooks.json) that decide which scripts run at all. A single
+  # unguarded edit to any of these is equally a persistence/neutering path
+  # as editing protect-config.sh itself: e.g. rewriting .claude/settings.json
+  # to drop the PreToolUse entry disables every guard without touching a
+  # single guard file. ".claude/settings.json" is the FULL relative path
+  # (not bare "settings.json") so this does not over-match unrelated
+  # settings.json files a downstream project might have (e.g.
+  # .vscode/settings.json) -- verified against this repo's tree at the time
+  # this was added; re-check if a new settings.json-named file is
+  # introduced elsewhere in .claude/.
+  "worktree-setup.sh"
+  "post-lint.sh"
+  "protect-read.sh"
+  "protect-shell.sh"
+  "enforce-model.sh"
+  "lib/profile.sh"
+  "suggest-compact.mjs"
+  "hooks.json"
+  ".claude/settings.json"
 )
 
 # Normalize a path so trivial variants can't dodge exact-match checks:
