@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # This template has no application manifests (no package.json, requirements.txt,
+  # etc.) yet, so the only dependencies to keep current are the GitHub Actions
+  # pinned in .github/workflows/. Add an ecosystem here once a language stack
+  # is chosen (see README "Checklist: What to Edit When Starting a New Project").
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      # Bundle all github-actions bumps (e.g. the pinned SHA + version comment
+      # on actions/checkout) into a single PR instead of one per action.
+      github-actions:
+        patterns:
+          - "*"
