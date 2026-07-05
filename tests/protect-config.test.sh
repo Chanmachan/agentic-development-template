@@ -89,6 +89,14 @@ for HOOK in "${HOOKS[@]}"; do
   run_hook "$HOOK" '{"tool_input":{"file_path":"/repo/.vscode/settings.json"}}'
   [ "$RC" -eq 0 ] && ok "allow /repo/.vscode/settings.json (outside .claude/)" || bad "/repo/.vscode/settings.json should allow (rc=$RC out=$OUT)"
 
+  # Same precision for the hooks.json entries: ".codex/hooks.json" and
+  # ".cursor/hooks.json" are anchored FULL relative paths, not a bare
+  # "hooks.json" substring -- a downstream project's unrelated hooks.json
+  # (outside .codex/ and .cursor/) must stay ALLOWED. Pinned here so a future
+  # edit can't accidentally widen the pattern back to a bare substring.
+  run_hook "$HOOK" '{"tool_input":{"file_path":"/repo/some-tool/hooks.json"}}'
+  [ "$RC" -eq 0 ] && ok "allow /repo/some-tool/hooks.json (outside .codex/.cursor)" || bad "/repo/some-tool/hooks.json should allow (rc=$RC out=$OUT)"
+
   echo "$label (edge cases)"
   run_hook "$HOOK" 'not json'
   [ "$RC" -eq 0 ] && ok "malformed stdin fails open (allow)" || bad "malformed stdin should fail open, rc=$RC out=$OUT"
