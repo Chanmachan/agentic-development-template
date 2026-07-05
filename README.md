@@ -165,6 +165,8 @@ These run automatically when the configured agent writes code:
 | Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | Before commit (Lefthook) | Checks `AGENTS.md` line count and ADR freshness |
 
+`check-doc-health.sh` warns/errors on ADR staleness based on `DOC_HEALTH_WARN_DAYS` (default `14`) and `DOC_HEALTH_ERROR_DAYS` (default `30`) days since `Last-validated`. Non-numeric values fall back to the default with a WARN.
+
 ---
 
 ## Hook Profiles
