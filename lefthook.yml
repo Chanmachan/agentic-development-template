@@ -20,10 +20,26 @@ commit-msg:
   commands:
     check-prefix:
       run: |
-        if ! head -1 {1} | grep -qE '^(feat|fix|update|refactor|style|docs|test|chore|del|perf|ci): .+$|^(Merge|Revert) '; then
+        msg_file={1}
+        first_line=$(head -1 "$msg_file")
+        # Merge/Revert commits are exempt from the single-line rule (git
+        # generates their bodies), so allow the whole message once the first
+        # line matches.
+        if echo "$first_line" | grep -qE '^(Merge|Revert) '; then
+          exit 0
+        fi
+        if ! echo "$first_line" | grep -qE '^(feat|fix|update|refactor|style|docs|test|chore|del|perf|ci): .+$'; then
           echo "Commit message must follow .claude/rules/git.md format"
           echo "  Format: prefix: short description (single line, no body/footer)"
           echo "  Allowed prefixes: feat, fix, update, refactor, style, docs, test, chore, del, perf, ci"
           echo "  Merge and Revert commits are also allowed."
+          exit 1
+        fi
+        # .claude/rules/git.md requires a single-line message (no body or
+        # footer). Reject any non-blank content after the first line; trailing
+        # blank lines are tolerated.
+        if tail -n +2 "$msg_file" | grep -qE '\S'; then
+          echo "Commit message must be a single line (no body or footer) per .claude/rules/git.md"
+          echo "  Found additional non-blank content after the first line."
           exit 1
         fi
