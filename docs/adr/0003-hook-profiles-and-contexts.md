@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-05-11
-- Last-validated: 2026-07-03
+- Last-validated: 2026-07-06
 
 ## Context
 
@@ -92,6 +92,10 @@ Node.js 実装で、ツール使用イベントの累積トークン数を概算
 - HOOK_PROFILE の存在を開発者が知っていないと「なぜフックが動かない / 動きすぎる」となる → README とエラーメッセージで明示
 - bash と Node.js が混在すると、フック共通ロジック (例: 入力 JSON のパース) を 2 言語でメンテすることになる → 共通ライブラリは最小化し、各フックで直接書く方針にする
 - contexts/ は手動で `--append-system-prompt` する運用なので、忘れがち → README にシェルエイリアスのサンプルを載せる
+
+### Addendum (2026-07-06): doc-health staleness しきい値の環境変数化
+
+`check-doc-health.sh` の ADR 鮮度チェックは当初 3/5 日程度の固定しきい値で運用したが、通常の開発ペースでは頻繁に WARN/ERROR が出て運用上厳しすぎることが分かった。`DOC_HEALTH_WARN_DAYS` / `DOC_HEALTH_ERROR_DAYS` 環境変数で調整可能にし、デフォルトを 14/30 日に緩和した。非数値が渡された場合は WARN を出しつつデフォルトにフォールバックする (fail-soft、本 ADR の `HOOK_PROFILE` 未知値の扱いと同じ方針)。
 
 ### Out of scope (将来の ADR で扱う)
 
