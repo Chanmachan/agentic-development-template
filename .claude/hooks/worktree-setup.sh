@@ -74,6 +74,6 @@ fi
 # own literal string, not user input. Still fail-open: no match is not an
 # error, just nothing to surface.
 SYNC_OUTPUT="$(cd "$WORKTREE_ROOT" && bash scripts/sync-local-docs.sh 2>&1)"
-printf '%s\n' "$SYNC_OUTPUT" | grep '実ディレクトリ' >&2 || true
+printf '%s\n' "$SYNC_OUTPUT" | grep -A1 '実ディレクトリ' >&2 || true
 
 exit 0
