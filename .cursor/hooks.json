@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "bash .cursor/hooks/enforce-model.sh"
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|ApplyPatch",
+        "command": "bash .cursor/hooks/protect-config.sh"
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "matcher": "Read|TabRead",
+        "command": "bash .cursor/hooks/protect-read.sh"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "bash .cursor/hooks/protect-shell.sh"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "bash .cursor/hooks/post-lint.sh"
+      }
+    ],
+    "stop": [
+      {
+        "command": "bash .cursor/hooks/stop-check.sh"
+      }
+    ]
+  }
+}
