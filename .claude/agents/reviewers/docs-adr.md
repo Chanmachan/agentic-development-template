@@ -2,7 +2,7 @@
 name: review-docs-adr
 description: "Use when reviewing a diff, PR, or staged changes for documentation and architectural decision concerns only — ADR consistency, spec alignment, AGENTS.md/CLAUDE.md rule compliance, public API doc updates, comment WHY-quality. Typically spawned in parallel by /multi-review; may also be invoked directly when docs/ADR are the only angle of interest. Returns priority-ranked findings (Blocking/Suggestion/Nit) limited to docs/ADR; does NOT comment on correctness, tests, security, performance, or readability — those are owned by sibling reviewers. Adaptive: ADR/spec checks are skipped if `docs/adr/` or `docs/spec.md` is absent (other repos may not have them)."
 tools: Read, Grep, Glob, Bash
-model: opus
+model: inherit
 ---
 
 # Docs & ADR Reviewer

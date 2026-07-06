@@ -2,7 +2,7 @@
 name: code-reviewer
 description: Use for general single-perspective code review when a multi-angle deep review is overkill — e.g., quick sanity check on a moderately large diff, or when the diff is too large to fit comfortably in the main conversation context. For full multi-angle review (correctness / security / tests / performance / readability / docs-adr in parallel) use `/multi-review` instead. Returns Blocking/Suggestion/Nit findings across all angles in a single pass. Read-only tools only; cannot modify code.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: inherit
 ---
 
 # Code Reviewer Subagent (general-purpose)
