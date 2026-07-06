@@ -2,7 +2,7 @@
 name: review-readability
 description: Use when reviewing a diff, PR, or staged changes for readability and scope concerns only — naming, scope drift, dead code, comment hygiene, over-abstraction, function length, responsibility boundaries. Typically spawned in parallel by /multi-review; may also be invoked directly when readability is the only angle of interest. Returns priority-ranked findings (Blocking/Suggestion/Nit) limited to readability/scope; does NOT comment on correctness, tests, security, performance, or docs/ADR — those are owned by sibling reviewers.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: inherit
 ---
 
 # Readability & Scope Reviewer

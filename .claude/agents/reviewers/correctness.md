@@ -2,7 +2,7 @@
 name: review-correctness
 description: Use when reviewing a diff, PR, or staged changes for correctness concerns only — spec conformance, edge cases, error paths, concurrency, backward compatibility. Typically spawned in parallel by /multi-review; may also be invoked directly when a single-perspective focused review is enough. Returns priority-ranked findings (Blocking/Suggestion/Nit) limited to correctness; does NOT comment on tests, security, performance, readability, or docs/ADR — those are owned by sibling reviewers.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: inherit
 ---
 
 # Correctness Reviewer
