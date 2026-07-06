@@ -95,10 +95,6 @@ reviewer 本文に project-specific な path / ID を直書きしない。`docs-
 - reviewer の `description` が下手だと auto-delegation されず宝の持ち腐れになる → 各 description に "Use when reviewing ... for X concerns only" と書く規約を確立
 - 外部独立レビューとの混同リスク → README と SKILL.md の使い分け表で「自前: 速い・カスタム可能、外部独立レビュー: merge 直前の最終確認」を 1 行で示す
 
-### Addendum (2026-07-06): reviewer model pinning
-
-6 reviewer subagent と `code-reviewer` は `model: opus` に固定した。レビューは判断密度が高く、コストを払う価値があるという判断。トレードオフとして、上記の「6 並列起動の token 消費」がさらに増幅される。
-
 ### Out of scope (将来の ADR で扱う)
 
 - `claude-code-action` (GitHub Actions) との連携。PR 開く度に自動で `/multi-review` 相当を走らせる仕組み

@@ -2,7 +2,7 @@
 name: review-security
 description: Use when reviewing a diff, PR, or staged changes for security concerns only — input validation, injection, authentication/authorization, secrets, cryptography, dependency vulnerabilities. Typically spawned in parallel by /multi-review; may also be invoked directly when security is the only angle of interest. Returns priority-ranked findings (Blocking/Suggestion/Nit) limited to security; does NOT comment on correctness, tests, performance, readability, or docs/ADR — those are owned by sibling reviewers.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: inherit
 ---
 
 # Security Reviewer
