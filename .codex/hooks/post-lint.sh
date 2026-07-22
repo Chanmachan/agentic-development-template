@@ -8,24 +8,35 @@ input="$(cat)"
 file="$(jq -r '.tool_input.file_path // .tool_input.path // empty' <<< "$input")"
 [ -z "$file" ] && exit 0
 
-# Skip absolute paths outside this repo (e.g. scratchpad/session temp dirs);
-# relative paths pass through and are classified by extension below. Compare
-# symlink-resolved paths: `git rev-parse --show-toplevel` returns the physical
-# path, so $file's directory is resolved the same way — otherwise macOS's
-# /var -> /private/var symlink makes in-repo files look "outside" whenever
-# $TMPDIR-style paths are involved.
+# Skip files that resolve outside this repo (e.g. scratchpad/session temp
+# dirs). Compare physical paths: `git rev-parse --show-toplevel` resolves
+# symlinks, so the file's directory (`pwd -P`) and any symlinked final
+# component (readlink loop, hop-bounded so a link cycle can't hang the hook)
+# must be resolved the same way — otherwise macOS's /var -> /private/var
+# symlink makes in-repo files look "outside", and an in-repo symlink to an
+# outside file would look "inside". Relative paths resolve against the hook's
+# cwd, so `../escape.ts`-style paths are caught too. Unresolvable paths are
+# skipped: a file whose directory doesn't exist can't be linted anyway.
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -n "$repo_root" ]; then
-  case "$file" in
-    /*)
-      real_file_dir="$(cd "$(dirname "$file")" 2>/dev/null && pwd -P)" || real_file_dir=""
-      real_file="${real_file_dir:+$real_file_dir/$(basename "$file")}"
-      real_file="${real_file:-$file}"
-      case "$real_file" in
-        "$repo_root"/*) ;;
-        *) exit 0 ;;
-      esac
-      ;;
+  real_dir="$(cd "$(dirname "$file")" 2>/dev/null && pwd -P)" || real_dir=""
+  [ -z "$real_dir" ] && exit 0
+  real_file="$real_dir/$(basename "$file")"
+  hops=0
+  while [ -L "$real_file" ] && [ "$hops" -lt 8 ]; do
+    target="$(readlink "$real_file")" || break
+    case "$target" in
+      /*) ;;
+      *) target="$(dirname "$real_file")/$target" ;;
+    esac
+    real_dir="$(cd "$(dirname "$target")" 2>/dev/null && pwd -P)" || real_dir=""
+    [ -z "$real_dir" ] && exit 0
+    real_file="$real_dir/$(basename "$target")"
+    hops=$((hops + 1))
+  done
+  case "$real_file" in
+    "$repo_root"/*) ;;
+    *) exit 0 ;;
   esac
 fi
 
