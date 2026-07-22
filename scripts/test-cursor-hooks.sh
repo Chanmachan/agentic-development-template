@@ -194,6 +194,22 @@ run_postlint '{"file_path":"sample.ts"}'
 { [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "in-repo relative path still invokes formatters" || bad "in-repo relative path should format (rc=$RC)"
 run_postlint "$(printf '{"file_path":"%s/repo-alias/sample.ts"}' "$OUTSIDE")"
 { [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "in-repo file via symlinked dir still invokes formatters" || bad "symlinked-dir in-repo path should format (rc=$RC)"
+# Logical traversal escape: an in-repo symlink as an intermediate component
+# followed by `..` — logical cd would land back inside the repo, physical
+# traversal lands in $OUTSIDE where escape.ts actually lives.
+mkdir "$OUTSIDE/deep"
+ln -s "$OUTSIDE/deep" "$FAKEBIN/midlink"
+run_postlint '{"file_path":"midlink/../escape.ts"}'
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "intermediate-symlink/../ escape is a no-op" || bad "intermediate-symlink escape should no-op (rc=$RC)"
+# Hop-bound fail-closed: a chain longer than the readlink hop bound whose end
+# lies outside the repo must be skipped, not linted as its in-repo link name.
+ln -s "$OUTSIDE/escape.ts" "$FAKEBIN/chain-9.ts"
+for i in 8 7 6 5 4 3 2 1; do ln -s "$FAKEBIN/chain-$((i + 1)).ts" "$FAKEBIN/chain-$i.ts"; done
+run_postlint '{"file_path":"chain-1.ts"}'
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "over-hop-bound symlink chain to outside is a no-op" || bad "long symlink chain should no-op (rc=$RC)"
+echo 'const d=1' > "$FAKEBIN/-dash.ts"
+run_postlint '{"file_path":"-dash.ts"}'
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "dash-prefixed in-repo file still invokes formatters" || bad "dash-prefixed file should format (rc=$RC)"
 rm -rf "$OUTSIDE"
 run_postlint '{"hook_event_name":"afterFileEdit"}'
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing path is a no-op" || bad "missing path should no-op (rc=$RC)"
