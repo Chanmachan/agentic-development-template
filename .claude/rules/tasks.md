@@ -17,7 +17,7 @@ paths:
 
 ## backlog.md
 
-When you spot an out-of-scope gap or leftover, don't silently drop it: log it as a one-line `- [ ]` checklist item with source (file:line or PR comment) in `tasks/backlog.md`. Fix it now only if it belongs in the current change. `tasks/` is git-ignored, so anything a reviewer/teammate must see also goes in the PR body.
+When you spot an out-of-scope gap or leftover, don't silently drop it: log it as a one-line `- [ ]` checklist item with source (file:line or PR comment) in `tasks/backlog.md`. Read-only agents (review subagents) do not write backlog entries — they report gaps to the orchestrator/implementer, who records them. Fix it now only if it belongs in the current change. `tasks/` is git-ignored, so anything a reviewer/teammate must see also goes in the PR body.
 
 ## tasks.jsonl line schema
 

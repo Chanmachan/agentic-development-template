@@ -30,7 +30,7 @@ See: @AGENTS.md
 
 - `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `context-{dev,review,research,debug}` (オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator`, `enumerator` (委譲時にロード)
-- `.claude/rules/` は全て読むこと。索引: `git` / `tasks` / `pitfalls` (技術的落とし穴、セッション開始時に一読) / `model-roles` (モデル役割分担)
+- `.claude/rules/` 索引: `git` / `tasks` / `pitfalls` / `model-roles`。path frontmatter の無い rule (`git` / `pitfalls` / `model-roles`) はセッション開始時に一読。`tasks` は ADR 0009 の path-scoping に従い、該当パス (`tasks/**`, `scripts/sync-tasks.sh`) を触るときだけロードされる。
 
 ## Hook profiles and contexts
 
