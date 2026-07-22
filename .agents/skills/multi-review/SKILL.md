@@ -45,6 +45,7 @@ $ARGUMENTS は任意:
    - 各 reviewer の出力から Blocking / Suggestion / Nit / Strengths を抽出
    - `path:line` 単位で **緩く dedupe** (同じ箇所が複数観点から指摘されたら、最も厳しい観点を主とし他観点を括弧で添える)
    - **反証 pass**: 各 Blocking は、統合レポートに載せる前に該当ファイルを実際に開いて指摘が成立するか再確認する。成立しない・誇張と判明したものは Suggestion に降格するか棄却し、その旨を記録する
+     - PR 番号 / URL モードでは diff だけではローカル checkout と PR head が一致しないことがある。**反証 pass の前に PR head を取得**し、そのリビジョンに対して検証する (例: `gh pr checkout <番号>` で head を checkout する、または `gh api repos/{owner}/{repo}/pulls/{番号}` で head ref を取得して `git fetch origin <head-ref>` 後にその SHA を checkout)。ローカル空引数モード (= `HEAD` vs `main`) のときは現在の working tree をそのまま使う
    - 全観点の Blocking のみを末尾に集約リスト化
 5. **統合レポートを出力** (下記フォーマット)
 
