@@ -207,6 +207,13 @@ ln -s "$OUTSIDE/escape.ts" "$FAKEBIN/chain-9.ts"
 for i in 8 7 6 5 4 3 2 1; do ln -s "$FAKEBIN/chain-$((i + 1)).ts" "$FAKEBIN/chain-$i.ts"; done
 run_postlint '{"file_path":"chain-1.ts"}'
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "over-hop-bound symlink chain to outside is a no-op" || bad "long symlink chain should no-op (rc=$RC)"
+# A symlink target whose final component is `..` leaves a resolved path that
+# still string-prefix-matches the repo root while physically resolving to a
+# parent directory (here: $FAKEBIN's parent, outside the repo) — must skip.
+mkdir "$FAKEBIN/subdir"
+ln -s 'subdir/../..' "$FAKEBIN/dotdot.ts"
+run_postlint '{"file_path":"dotdot.ts"}'
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "symlink target ending in /.. is a no-op" || bad "dot-dot symlink target should no-op (rc=$RC)"
 echo 'const d=1' > "$FAKEBIN/-dash.ts"
 run_postlint '{"file_path":"-dash.ts"}'
 { [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "dash-prefixed in-repo file still invokes formatters" || bad "dash-prefixed file should format (rc=$RC)"
