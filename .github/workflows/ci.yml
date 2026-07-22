@@ -20,12 +20,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   # Only cancel in-progress runs for PRs (rapid pushes to the same PR branch
-  # superseding stale runs is fine). Never cancel a main-push run: a deploy
-  # workflow may gate on this workflow's success (workflow_run), so an
-  # in-flight main CI run must always finish and report a real conclusion for
-  # every merged commit.
+  # superseding stale runs is fine). For main pushes, give each run its own
+  # group (via run_id) so pending runs are not replaced by newer pushes —
+  # GitHub replaces pending runs in the same concurrency group even when
+  # cancel-in-progress is false. A deploy workflow may gate on this workflow's
+  # success (workflow_run), so every merged commit's CI run must finish and
+  # report a real conclusion.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
