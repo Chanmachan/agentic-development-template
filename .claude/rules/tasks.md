@@ -13,6 +13,11 @@ paths:
 - **`tasks/tasks.jsonl` — status registry.** One JSON object per line, one per task. The single, global index of "what tasks exist and their state" — canonical in the **main checkout** (see Worktrees). Read it at session start to see in-flight work, then open the relevant `tasks/<id>-todo.md` + recent `tasks/done/*.md` for detail.
 - **`tasks/<id>-todo.md` — per-task detail.** Each task has its own file holding the plan/checklist (use `- [ ]` checkboxes). There is no privileged single `todo.md`.
 - **`tasks/done/<id>.md` — archive.** Self-contained record once MERGED (概要 / branch / commits / PR / 検証結果 が単体で読める).
+- **`tasks/backlog.md` — out-of-scope gaps.** Running checklist of items noticed but not in the current task scope.
+
+## backlog.md
+
+When you spot an out-of-scope gap or leftover, don't silently drop it: log it as a one-line `- [ ]` checklist item with source (file:line or PR comment) in `tasks/backlog.md`. Fix it now only if it belongs in the current change. `tasks/` is git-ignored, so anything a reviewer/teammate must see also goes in the PR body.
 
 ## tasks.jsonl line schema
 
