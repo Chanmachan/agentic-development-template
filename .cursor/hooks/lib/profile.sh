@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # HOOK_PROFILE gate for Cursor hooks (copy of .claude/hooks/lib/profile.sh).
 #
-# Kept aligned with the Claude/Codex version on purpose: the three harnesses
-# (.claude, .codex, .cursor) each carry their own copy rather than sharing one
-# lib, so a reader can reason about each in isolation (ADR 0005 §Decision).
+# Each harness (.claude, .codex, .cursor) carries its own copy rather than
+# sharing one lib, so a reader can reason about each in isolation (ADR 0005
+# §Decision). Membership DIFFERS by harness: .claude/.codex standard
+# additionally has git-guard, which has no Cursor port yet.
 #
 # Usage (source-only — do not execute directly):
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/profile.sh"
