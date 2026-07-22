@@ -14,6 +14,12 @@ import { statSync } from "node:fs";
 
 const profile = process.env.HOOK_PROFILE ?? "standard";
 if (profile === "minimal") process.exit(0);
+if (profile !== "standard" && profile !== "strict") {
+  // Fail-soft like lib/profile.sh (ADR 0003 §1): warn, then run as standard.
+  process.stderr.write(
+    `WARN: unknown HOOK_PROFILE='${profile}' (expected minimal|standard|strict); treating as standard\n`,
+  );
+}
 
 const threshold = Number(process.env.SUGGEST_COMPACT_THRESHOLD ?? 140000);
 
