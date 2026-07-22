@@ -26,6 +26,27 @@ file="$(jq -r '
   empty' <<< "$input" 2>/dev/null)" || file=""
 [ -z "$file" ] && exit 0
 
+# Skip absolute paths outside this repo (e.g. scratchpad/session temp dirs);
+# relative paths pass through and are classified by extension below. Compare
+# symlink-resolved paths: `git rev-parse --show-toplevel` returns the physical
+# path, so $file's directory is resolved the same way — otherwise macOS's
+# /var -> /private/var symlink makes in-repo files look "outside" whenever
+# $TMPDIR-style paths are involved.
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$repo_root" ]; then
+  case "$file" in
+    /*)
+      real_file_dir="$(cd "$(dirname "$file")" 2>/dev/null && pwd -P)" || real_file_dir=""
+      real_file="${real_file_dir:+$real_file_dir/$(basename "$file")}"
+      real_file="${real_file:-$file}"
+      case "$real_file" in
+        "$repo_root"/*) ;;
+        *) exit 0 ;;
+      esac
+      ;;
+  esac
+fi
+
 case "$file" in
   # -------------------------------------------------------
   # TypeScript / JavaScript (enabled by default)
