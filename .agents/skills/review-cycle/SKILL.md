@@ -63,3 +63,4 @@ review-cycle --max-rounds 5  # 上限を 5 周に
 ## 関連
 - `multi-review` — 1 周分の 6 観点レビュー(本スキルが内部で使う部品)
 - `fix-review` — 指摘 1 件ずつへの対応(本スキルが内部で使う部品)
+- `verify-guide` — clean 後、手元動作確認の runbook を出す次の一手
