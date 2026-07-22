@@ -121,7 +121,7 @@ codex    # Codex
 │       │                      # ★ Edit this to match your language
 │       ├── stop-check.sh      # Block completion until tests pass (Stop)
 │       ├── worktree-setup.sh  # Auto-sync tasks/ symlink on SessionStart/SubagentStart (all profiles, see ADR 0009)
-│       └── suggest-compact.mjs # Suggest /clear when context fills (strict only)
+│       └── suggest-compact.mjs # Suggest /clear when context fills (standard and strict)
 │
 ├── .codex/
 │   ├── hooks.json         # Codex hook settings
@@ -176,7 +176,7 @@ These run automatically when the configured agent writes code:
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
 | Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins via the shared `scripts/lib/protected.sh` classification (ADR 0008). `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
-| Before any tool use (PreToolUse, strict only) | `suggest-compact` nudges `/clear` when context approaches the limit |
+| Before any tool use (PreToolUse, standard and strict) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | On session/subagent start (SessionStart, SubagentStart — all profiles) | `worktree-setup.sh` runs `sync-local-docs.sh` so a fresh worktree's `tasks/` symlink is set up without a manual step — see ADR 0009 |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
 | Before commit (Lefthook `commit-msg`) | Rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`; `Merge`/`Revert` exempted) |
@@ -207,8 +207,8 @@ Hooks are gated by `HOOK_PROFILE` (default `standard`). Set it per session to di
 | Profile | Active hooks | Use when |
 |---------|--------------|----------|
 | `minimal` | post-lint | Prototyping, demos, external repos |
-| `standard` (default) | post-lint, protect-config, stop-check | Day-to-day development |
-| `strict` | all of standard + suggest-compact (+ future hooks) | Pre-release, hardening branches |
+| `standard` (default) | post-lint, protect-config, stop-check, suggest-compact | Day-to-day development |
+| `strict` | all of standard (+ future hooks) | Pre-release, hardening branches |
 
 ```bash
 HOOK_PROFILE=minimal claude     # loosen Claude Code
