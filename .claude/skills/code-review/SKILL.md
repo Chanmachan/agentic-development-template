@@ -61,9 +61,10 @@ description: Use when reviewing a pull request, a diff, or a set of staged chang
 ## How to deliver feedback
 
 - **Blocking / Suggestion / Nit** の 3 段階でマークする
-  - Blocking: マージ前に直す必要がある
+  - Blocking = 認可穴・データ破壊・本番バグ直結・仕様との明確な乖離・テスト無しの振る舞い変更のいずれか。それ以外の改善は Suggestion
   - Suggestion: 直したほうがよいが必須ではない
   - Nit: 好みレベル、無視してよい
+  - **迷ったら Suggestion に落とし、理由を書く**
 - 「なぜそれが問題か」を 1 行添える。指摘だけでなく代替案も提示する
 - 良い点も書く (validate された判断は memory に蓄積される)
 
