@@ -180,6 +180,21 @@ run_postlint "$(printf '{"file_path":"%s/notes.md"}' "$FAKEBIN")"
 run_postlint_outside() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; ( cd "$REPO_ROOT" && printf '%s' "$1" | PATH="$FAKEBIN:$PATH" bash "$HOOKS_DIR/post-lint.sh" ) >/dev/null 2>&1; RC=$?; }
 run_postlint_outside "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "absolute path outside repo root is a no-op" || bad "outside-repo edit should no-op (rc=$RC)"
+# Explicit escape fixtures, independent of macOS's /var alias (absent on Linux
+# CI): $OUTSIDE is a sibling temp dir holding the escape targets.
+OUTSIDE="$(mktemp -d)"
+echo 'const y=2' > "$OUTSIDE/escape.ts"
+ln -s "$OUTSIDE/escape.ts" "$FAKEBIN/link.ts"
+ln -s "$FAKEBIN" "$OUTSIDE/repo-alias"
+run_postlint "$(printf '{"file_path":"../%s/escape.ts"}' "$(basename "$OUTSIDE")")"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "relative path escaping repo root is a no-op" || bad "relative escape should no-op (rc=$RC)"
+run_postlint "$(printf '{"file_path":"%s/link.ts"}' "$FAKEBIN")"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "in-repo symlink to outside file is a no-op" || bad "symlink escape should no-op (rc=$RC)"
+run_postlint '{"file_path":"sample.ts"}'
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "in-repo relative path still invokes formatters" || bad "in-repo relative path should format (rc=$RC)"
+run_postlint "$(printf '{"file_path":"%s/repo-alias/sample.ts"}' "$OUTSIDE")"
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "in-repo file via symlinked dir still invokes formatters" || bad "symlinked-dir in-repo path should format (rc=$RC)"
+rm -rf "$OUTSIDE"
 run_postlint '{"hook_event_name":"afterFileEdit"}'
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing path is a no-op" || bad "missing path should no-op (rc=$RC)"
 # Pin current behavior when the formatters are absent from PATH: post-lint.sh
