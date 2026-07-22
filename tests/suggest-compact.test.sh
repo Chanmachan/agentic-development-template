@@ -71,12 +71,28 @@ for HOOK in "${HOOKS[@]}"; do
   # values warn on stderr and still behave as standard.
   run_hook "$HOOK" bogus "$FIXTURE/big.jsonl"
   case "$ERR" in
-    *"unknown HOOK_PROFILE='bogus'"*) ok "unknown profile warns on stderr" ;;
-    *) bad "unknown profile should warn on stderr (err=$ERR)" ;;
+    *"unknown HOOK_PROFILE='bogus'"*)
+      [ "$RC" -eq 0 ] && ok "unknown profile warns on stderr" \
+        || bad "unknown profile should exit 0 (rc=$RC)" ;;
+    *) bad "unknown profile should warn on stderr (rc=$RC err=$ERR)" ;;
   esac
   case "$OUT" in
-    *'"additionalContext":"[suggest-compact]'*) ok "unknown profile runs as standard" ;;
-    *) bad "unknown profile should run as standard (out=$OUT)" ;;
+    *'"additionalContext":"[suggest-compact]'*)
+      [ "$RC" -eq 0 ] && ok "unknown profile runs as standard" \
+        || bad "unknown profile should exit 0 (rc=$RC)" ;;
+    *) bad "unknown profile should run as standard (rc=$RC out=$OUT)" ;;
+  esac
+
+  # Empty is how an unset HOOK_PROFILE often surfaces through shell layers;
+  # like ${HOOK_PROFILE:-standard} in lib/profile.sh it must default to
+  # standard with no unknown-profile warning.
+  run_hook "$HOOK" "" "$FIXTURE/big.jsonl"
+  case "$OUT" in
+    *'"additionalContext":"[suggest-compact]'*)
+      [ "$RC" -eq 0 ] && [ -z "$ERR" ] \
+        && ok "empty profile: silently runs as standard" \
+        || bad "empty profile should exit 0 with no stderr (rc=$RC err=$ERR)" ;;
+    *) bad "empty profile should run as standard (rc=$RC out=$OUT)" ;;
   esac
 done
 
