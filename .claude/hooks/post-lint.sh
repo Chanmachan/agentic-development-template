@@ -38,6 +38,10 @@ if [ -n "$repo_root" ]; then
     hops=$((hops + 1))
   done
   [ -L "$real_file" ] && exit 0
+  # A final `.`/`..` component is a directory reference, never a lintable
+  # file — and "$repo_root/.." would string-prefix-match "$repo_root"/* while
+  # physically resolving to a parent (potentially outside), so skip it.
+  case "$(basename -- "$real_file")" in .|..) exit 0 ;; esac
   case "$real_file" in
     "$repo_root"/*) ;;
     *) exit 0 ;;
