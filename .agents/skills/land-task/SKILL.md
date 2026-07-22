@@ -20,14 +20,16 @@ description: Use after the user approves merge, to perform the mechanical landin
 ## 手順
 
 1. **対象タスクを解決** — `bash scripts/sync-tasks.sh get <task-id>` で行を引き、`pr` / `branch` / `todo` を取得。
-   PR 番号が引数にあればそれを優先。
+   **registry に行が無ければ中止**する。PR 番号が引数にあればそれを優先。
 
 2. **マージ可否を確認**（安全弁）
-   - `gh pr view <pr> --json state,mergeStateStatus,mergeable` と `gh pr checks <pr>` で
-     **CI が全 green** かつ未マージであることを確認。
-   - green でない / すでに closed 等なら **merge せず停止**して状況を報告する。
+   - `gh pr view <pr> --json state,mergeStateStatus,mergeable,headRefName,baseRefName` と
+     `gh pr checks <pr>` で **CI が全 green** かつ未マージであることを確認。
+   - `headRefName` が task の `branch` と一致し、`baseRefName` が `main` であることを確認する
+     (打ち間違いで無関係な green PR を merge して別タスクをアーカイブする事故を防ぐ)。
+   - green でない / head・base 不一致 / すでに closed 等なら **merge せず停止**して状況を報告する。
 
-3. **squash merge**（main の履歴慣習に合わせる）
+3. **squash merge**
    - `gh pr merge <pr> --squash --delete-branch`
    - ⚠ **worktree 落とし穴**: main が別 worktree に checkout されていると `--delete-branch` の
      **local 後始末だけ**が失敗するが、**merge 自体と remote ブランチ削除はサーバ側で成功**する。
@@ -35,7 +37,8 @@ description: Use after the user approves merge, to perform the mechanical landin
      エラー文だけ見て失敗と早合点しない。
 
 4. **台帳(tasks.jsonl)を done に更新**
-   - `bash scripts/sync-tasks.sh upsert <task-id> status=done branch=null done=tasks/done/<task-id>.md updated=<今日の日付> note="MERGED <日付> PR#<pr> squash (<merge commit 短縮>)"`
+   - `bash scripts/sync-tasks.sh upsert <task-id> status=done pr=<resolved-pr> todo=null done=tasks/done/<task-id>.md updated=<今日の日付> note="MERGED <日付> PR#<pr> squash (<merge commit 短縮>)"`
+   - `branch` は保持する(pre-branch planning のときだけ `null`)。`todo` は step 5 で archive するので `null`。
    - `updated` は今日の日付(`YYYY-MM-DD`)。
 
 5. **todo を done/ へ archive（self-contained に）**
@@ -57,8 +60,8 @@ description: Use after the user approves merge, to perform the mechanical landin
 
 ## 使い方
 ```
-land-task import-lp-harness-updates        # tasks.jsonl から PR を解決して着地
-land-task import-lp-harness-updates 42    # PR 番号を明示
+land-task <task-id>        # tasks.jsonl から PR を解決して着地
+land-task <task-id> 42    # PR 番号を明示
 ```
 
 ## 関連
