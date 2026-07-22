@@ -8,7 +8,9 @@
 
 ## Workflow
 
-フェーズ定義の正本は `CLAUDE.md` の "Workflow phases" (このファイルでは再定義しない)。
+フェーズ定義の正本は利用中ツールの定義に従う (本ファイルでは再定義しない):
+- **Claude Code**: `CLAUDE.md` の "Workflow phases"
+- **Codex**: `AGENTS.md` の "Workflow" と `.codex/rules/` (git / tasks) および `.agents/skills/` (TDD・plan 等のフェーズ手順)
 
 - **Explore first** (Plan フェーズの前段の姿勢) — 未知のコードに触る前に `plan-mode` skill または `investigator` subagent で読み取り、判断材料を集める。Edit/Write はしない
 - **Verify before stopping** — 計画段階で **"何が pass/fail を示すか" を明文化**しておく (失敗するテスト、ビルド終了コード、スクリーンショット差分、ログ出力)。agent 自身が読める形にすることで `stop-check.sh` を待たず自走できる
@@ -23,7 +25,7 @@
 
 ## Implementation rules
 
-- コミットは小さく: **1 コミット = 1 論理変更** (`.claude/rules/git.md` の prefix 規約に従う)
+- コミットは小さく: **1 コミット = 1 論理変更** (`.claude/rules/git.md` / `.codex/rules/git.md` の prefix 規約に従う)
 - 仕様外の機能を追加しない (要求のスコープを越えない)
 - 過剰な抽象を導入しない。3 回出てきてから共通化する
 - バグ修正に周辺リファクタを混ぜない (別 PR にする)
