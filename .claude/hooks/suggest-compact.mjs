@@ -2,7 +2,7 @@
 // suggest-compact: PreToolUse hook that nudges the user to /clear or split into
 // a subagent when the session transcript is approaching the context budget.
 //
-// Profile: strict only (per ADR 0003 §1). minimal/standard exit immediately.
+// Profile: standard and strict (per ADR 0003 §1). minimal exits immediately.
 //
 // Token estimate is intentionally rough. We divide transcript bytes by 2:
 //   - English: ~1 token / 4 bytes → this overestimates ~2x (earlier warning).
@@ -13,7 +13,7 @@
 import { statSync } from "node:fs";
 
 const profile = process.env.HOOK_PROFILE ?? "standard";
-if (profile !== "strict") process.exit(0);
+if (profile === "minimal") process.exit(0);
 
 const threshold = Number(process.env.SUGGEST_COMPACT_THRESHOLD ?? 140000);
 
