@@ -12,7 +12,7 @@
 
 import { statSync } from "node:fs";
 
-const profile = process.env.HOOK_PROFILE ?? "standard";
+const profile = process.env.HOOK_PROFILE || "standard";
 if (profile === "minimal") process.exit(0);
 if (profile !== "standard" && profile !== "strict") {
   // Fail-soft like lib/profile.sh (ADR 0003 §1): warn, then run as standard.
