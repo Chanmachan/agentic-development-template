@@ -32,6 +32,10 @@ for file in AGENTS.md CLAUDE.md; do
 done
 
 # 2. ADR の last-validated 日付チェック
+# NOTE: staleness は WARN のみで commit をブロックしない (FAILED は立てない)。
+#   Last-validated を持つ ADR は一部の ADR に留まり適用が恣意的なうえ、
+#   「無関係な作業中に突然 commit がブロックされる」実害が繰り返し発生していたため、
+#   ここは注意喚起 (WARN) に留め、実際に更新するかは著者の判断に委ねる。
 for adr in docs/adr/*.md; do
   [ -f "$adr" ] || continue
   # 0000 プレフィックスのテンプレートはスキップする（実際の意思決定ではなく雛形のため）
@@ -47,27 +51,45 @@ for adr in docs/adr/*.md; do
 
   diff_days=$(( (TODAY - adr_ts) / 86400 ))
   if [ "$diff_days" -ge "$ERROR_DAYS" ]; then
-    echo "ERROR: $adr last-validated $diff_days days ago. Update or remove it."
-    FAILED=1
+    echo "WARN: $adr last-validated $diff_days days ago. Consider updating it (non-blocking)."
   elif [ "$diff_days" -ge "$WARN_DAYS" ]; then
     echo "WARN: $adr last-validated $diff_days days ago."
   fi
 done
 
-# 3. AGENTS.md / CLAUDE.md 内の壊れたファイルパス参照チェック
+# 3. 壊れたファイルパス参照チェック
 # grep -oP は macOS 非対応のため grep -oE を使用
 # バッククォート内に書かれた "/" を含む文字列のうち、明らかにファイルパスでない
-# パターン (slash command / brace 展開 / shell スニペット) はスキップする。
-for file in AGENTS.md CLAUDE.md; do
+# パターン (slash command / brace 展開 / shell スニペット / プレースホルダ) はスキップする。
+# 対象は AGENTS.md / CLAUDE.md に加え、skills/agents/commands/rules/contexts 配下。
+POINTER_FILES=(AGENTS.md CLAUDE.md)
+for pattern in \
+  ".claude/skills/*/SKILL.md" \
+  ".claude/agents/*.md" \
+  ".claude/agents/reviewers/*.md" \
+  ".claude/commands/*.md" \
+  ".claude/rules/*.md" \
+  "contexts/*.md"
+do
+  for f in $pattern; do
+    [ -f "$f" ] && POINTER_FILES+=("$f")
+  done
+done
+
+for file in "${POINTER_FILES[@]}"; do
   [ -f "$file" ] || continue
   grep -oE '`[^`]+`' "$file" | tr -d '`' | while read -r path; do
     # Skip slash commands like /clear, /compact, /fix-review (single segment after /)
     [[ "$path" =~ ^/[A-Za-z][A-Za-z0-9_-]*$ ]] && continue
     # Skip brace expansion patterns like contexts/{dev,review}.md
     [[ "$path" == *"{"* || "$path" == *"}"* ]] && continue
+    # Skip glob patterns like tasks/done/*.md (pattern reference, not a literal pointer)
+    [[ "$path" == *"*"* ]] && continue
     # Skip shell snippets (whitespace or command substitution inside backticks)
     [[ "$path" == *[[:space:]]* ]] && continue
     [[ "$path" == *'$('* ]] && continue
+    # Skip placeholder paths like tasks/<id>-todo.md, docs/pages/<role>/
+    [[ "$path" == *"<"* || "$path" == *">"* ]] && continue
 
     if [[ "$path" == */* ]] && [ ! -e "$path" ]; then
       echo "WARN: Broken pointer in $file: $path"
