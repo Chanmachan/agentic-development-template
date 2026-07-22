@@ -7,7 +7,7 @@
 #
 # Profile membership (per ADR 0003):
 #   minimal  : post-lint
-#   standard : post-lint, protect-config, stop-check     (default)
+#   standard : post-lint, protect-config, stop-check, suggest-compact  (default)
 #   strict   : all hooks
 #
 # If the current hook is not in the active profile, this function calls `exit 0`
@@ -23,7 +23,7 @@ hook_profile_skip() {
       ;;
     standard)
       case "$hook_name" in
-        post-lint|protect-config|stop-check) ;;
+        post-lint|protect-config|stop-check|suggest-compact) ;;
         *) exit 0 ;;
       esac
       ;;
@@ -32,7 +32,7 @@ hook_profile_skip() {
     *)
       echo "WARN: unknown HOOK_PROFILE='$profile' (expected minimal|standard|strict); treating as standard" >&2
       case "$hook_name" in
-        post-lint|protect-config|stop-check) ;;
+        post-lint|protect-config|stop-check|suggest-compact) ;;
         *) exit 0 ;;
       esac
       ;;
