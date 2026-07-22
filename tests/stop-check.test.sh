@@ -85,6 +85,40 @@ for HOOK in "${HOOKS[@]}"; do
   is_block && ok "docs + one code change still runs the gate" || bad "mixed change should block (out=$OUT)"
   rm -rf "$SKIPDIR"
 
+  # --- porcelain edge cases: renames and quote-worthy paths -----------------
+  # A staged rename reports two paths (dest + source); a code→docs rename
+  # removes code, so classifying only the destination would wrongly skip.
+  RENDIR="$(make_fixture 1)"
+  echo 'x' > "$RENDIR/src.ts"
+  git_quiet -C "$RENDIR" add -A
+  git_quiet -C "$RENDIR" commit -m seed
+  mkdir -p "$RENDIR/docs"
+  git_quiet -C "$RENDIR" mv src.ts docs/src.md
+  run_stop "$HOOK" "$RENDIR" '{"stop_hook_active":false}'
+  is_block && ok "code-to-docs rename still runs the gate" || bad "code-to-docs rename should block (out=$OUT)"
+  git_quiet -C "$RENDIR" commit -m mv1
+  echo 'n' > "$RENDIR/note.md"
+  git_quiet -C "$RENDIR" add -A
+  git_quiet -C "$RENDIR" commit -m note
+  git_quiet -C "$RENDIR" mv note.md docs/note.txt
+  run_stop "$HOOK" "$RENDIR" '{"stop_hook_active":false}'
+  { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "docs-to-docs rename skips checks" || bad "docs-to-docs rename should skip (rc=$RC out=$OUT)"
+  rm -rf "$RENDIR"
+
+  # Human-format porcelain C-quotes paths with spaces or non-ASCII bytes
+  # (' M "a b.md"'), which would defeat the *.md classification; the -z
+  # format reports them raw.
+  QDIR="$(make_fixture 1)"
+  echo 'n' > "$QDIR/a b.md"
+  echo 'n' > "$QDIR/日本語.md"
+  git_quiet -C "$QDIR" add -A
+  git_quiet -C "$QDIR" commit -m seed
+  echo 'edit' >> "$QDIR/a b.md"
+  echo 'edit' >> "$QDIR/日本語.md"
+  run_stop "$HOOK" "$QDIR" '{"stop_hook_active":false}'
+  { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "md paths with spaces/non-ASCII skip checks" || bad "quote-worthy md paths should skip (rc=$RC out=$OUT)"
+  rm -rf "$QDIR"
+
   # --- passing checks: silent ----------------------------------------------
   PASSDIR="$(make_fixture 0)"
   echo 'x' > "$PASSDIR/src.ts"

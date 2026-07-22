@@ -249,6 +249,35 @@ run_stop "$SKIPDIR" '{"loop_count":0}'
 echo "$OUT" | grep -q 'followup_message' && ok "docs + one code change still runs the gate" || bad "mixed change should emit followup (out=$OUT)"
 rm -rf "$SKIPDIR"
 
+# Porcelain edge cases: a staged code→docs rename reports two paths and must
+# NOT be treated as docs-only (code was removed); docs→docs renames and md
+# paths that the human porcelain format would C-quote (spaces/non-ASCII)
+# must still skip.
+RENDIR="$(make_toolchain 1)"
+git_quiet -C "$RENDIR" add -A
+git_quiet -C "$RENDIR" commit -m seed
+mkdir -p "$RENDIR/docs"
+git_quiet -C "$RENDIR" mv src.ts docs/src.md
+run_stop "$RENDIR" '{"loop_count":0}'
+echo "$OUT" | grep -q 'followup_message' && ok "code-to-docs rename still runs the gate" || bad "code-to-docs rename should emit followup (out=$OUT)"
+git_quiet -C "$RENDIR" commit -m mv1
+echo 'n' > "$RENDIR/note.md"
+git_quiet -C "$RENDIR" add -A
+git_quiet -C "$RENDIR" commit -m note
+git_quiet -C "$RENDIR" mv note.md docs/note.txt
+run_stop "$RENDIR" '{"loop_count":0}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "docs-to-docs rename skips checks" || bad "docs-to-docs rename should skip (rc=$RC out=$OUT)"
+git_quiet -C "$RENDIR" commit -m mv2
+echo 'n' > "$RENDIR/a b.md"
+echo 'n' > "$RENDIR/日本語.md"
+git_quiet -C "$RENDIR" add -A
+git_quiet -C "$RENDIR" commit -m quoted
+echo 'edit' >> "$RENDIR/a b.md"
+echo 'edit' >> "$RENDIR/日本語.md"
+run_stop "$RENDIR" '{"loop_count":0}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "md paths with spaces/non-ASCII skip checks" || bad "quote-worthy md paths should skip (rc=$RC out=$OUT)"
+rm -rf "$RENDIR"
+
 # Makefile routing: a Makefile with a `test:` target takes priority over
 # package.json/pnpm/npm below it.
 make_toolchain_makefile() { # $1=exit code

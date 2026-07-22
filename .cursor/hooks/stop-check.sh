@@ -42,23 +42,31 @@ fi
 
 # Skip the full gate when there is nothing to check, or when every changed
 # path is docs/tasks/markdown: a docs-only session should not pay for a full
-# lint+typecheck+test run. `git status --porcelain` also reports untracked
-# files, so they are covered by the same classification.
-changed="$(git status --porcelain 2>/dev/null || true)"
+# lint+typecheck+test run. `git status --porcelain -z` also reports untracked
+# files, so they are covered by the same classification; the NUL-delimited -z
+# format is parsed because the human format C-quotes paths with spaces or
+# non-ASCII bytes (' M "a b.md"'), which would defeat the pattern match.
+is_docs_path() {
+  case "$1" in
+    *.md|docs/*|tasks/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 skip=1
-if [ -n "$changed" ]; then
-  while IFS= read -r line; do
-    [ -z "$line" ] && continue
-    # porcelain v1: "XY path" (2-char status + 1 space, then path). Renames
-    # are "XY old -> new"; take the destination path.
-    path="${line:3}"
-    path="${path##*-> }"
-    case "$path" in
-      *.md|docs/*|tasks/*) ;;
-      *) skip=0 ;;
-    esac
-  done <<< "$changed"
-fi
+while IFS= read -r -d '' entry; do
+  # porcelain v1 -z: "XY path" (2-char status + 1 space, then raw path).
+  status="${entry:0:2}"
+  is_docs_path "${entry:3}" || skip=0
+  # A rename/copy (R/C in either status column) emits a second NUL record
+  # holding the SOURCE path; classify it too — "src.ts -> docs/src.md"
+  # removes code and must not be treated as docs-only.
+  case "$status" in
+    [RC]?|?[RC])
+      IFS= read -r -d '' src_path || break
+      is_docs_path "$src_path" || skip=0
+      ;;
+  esac
+done < <(git status --porcelain -z 2>/dev/null)
 [ "$skip" -eq 1 ] && exit 0
 
 FAILED=0
