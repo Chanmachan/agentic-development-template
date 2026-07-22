@@ -23,6 +23,7 @@ PAIRS=(
   ".claude/hooks/stop-check.sh:.codex/hooks/stop-check.sh"
   ".claude/hooks/protect-config.sh:.codex/hooks/protect-config.sh"
   ".claude/hooks/lib/profile.sh:.codex/hooks/lib/profile.sh"
+  ".claude/hooks/suggest-compact.mjs:.codex/hooks/suggest-compact.mjs"
 )
 
 for pair in "${PAIRS[@]}"; do
