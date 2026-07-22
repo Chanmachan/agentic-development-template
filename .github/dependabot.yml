@@ -14,3 +14,27 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Uncomment once a language stack is chosen (see README "Checklist: What to
+  # Edit When Starting a New Project"). Groups prod/dev minor+patch bumps,
+  # ignores semver-major, and caps open PRs.
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #     time: "09:00"
+  #     timezone: "Asia/Tokyo"
+  #   open-pull-requests-limit: 5
+  #   groups:
+  #     production-dependencies:
+  #       dependency-type: "production"
+  #       update-types: ["minor", "patch"]
+  #     development-dependencies:
+  #       dependency-type: "development"
+  #       update-types: ["minor", "patch"]
+  #   ignore:
+  #     - dependency-name: "*"
+  #       update-types: ["version-update:semver-major"]
+  #   labels:
+  #     - "dependencies"
