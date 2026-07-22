@@ -34,6 +34,7 @@ $ARGUMENTS は任意:
 3. **収束判定**
    - **対応すべき指摘 = Blocking + 「対応する」と判断した Suggestion**。
    - これがゼロ(残りが Nit、または「設計上あえてそうしている=却下済み」だけ)なら → **clean。ループ終了**。
+   - ただし clean と宣言できるのは次の3条件が揃ったときだけ: (a) Blocking が 0 (反証 pass 通過後)、かつ (b) 全 reviewer が結果を返した (`failed to evaluate` が無い)、かつ (c) lint/typecheck/test green のログを同レポートに提示できる。1 つでも欠けたら clean を宣言しない。
 
 4. **対応(fix-review)** — 残った指摘を `/fix-review` の方針で実装で潰す。
    - **設計判断で却下する指摘は直さず、却下理由を明記して残す**(例: 過去に確定した authz/status 方針)。
