@@ -4,7 +4,7 @@
 # Each harness (.claude, .codex, .cursor) carries its own copy rather than
 # sharing one lib, so a reader can reason about each in isolation (ADR 0005
 # §Decision). Membership DIFFERS by harness: .claude/.codex standard
-# additionally has git-guard, which has no Cursor port yet.
+# additionally has suggest-compact and git-guard, which have no Cursor port yet.
 #
 # Usage (source-only — do not execute directly):
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/profile.sh"

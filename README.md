@@ -120,6 +120,7 @@ codex    # Codex
 │       ├── post-lint.sh       # Auto-lint after every file edit (PostToolUse)
 │       │                      # ★ Edit this to match your language
 │       ├── stop-check.sh      # Block completion until tests pass (Stop)
+│       ├── git-guard.sh       # Block git footguns: --no-verify, commits on main, force-push to main (PreToolUse Bash)
 │       ├── worktree-setup.sh  # Auto-sync tasks/ symlink on SessionStart/SubagentStart (all profiles, see ADR 0009)
 │       └── suggest-compact.mjs # Suggest /clear when context fills (standard and strict)
 │
@@ -176,6 +177,7 @@ These run automatically when the configured agent writes code:
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
 | Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins via the shared `scripts/lib/protected.sh` classification (ADR 0008). `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
+| Before shell command (PreToolUse, `Bash` matcher) | `git-guard` blocks `git commit --no-verify`/`-n`, direct commits on `main` (escape hatch: `ALLOW_MAIN_COMMIT=1`), and force-pushes targeting `main` or issued while on `main`. Fails open on unparseable input |
 | Before any tool use (PreToolUse, standard and strict) | `suggest-compact` nudges `/clear` when context approaches the limit |
 | On session/subagent start (SessionStart, SubagentStart — all profiles) | `worktree-setup.sh` runs `sync-local-docs.sh` so a fresh worktree's `tasks/` symlink is set up without a manual step — see ADR 0009 |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
@@ -207,7 +209,7 @@ Hooks are gated by `HOOK_PROFILE` (default `standard`). Set it per session to di
 | Profile | Active hooks | Use when |
 |---------|--------------|----------|
 | `minimal` | post-lint | Prototyping, demos, external repos |
-| `standard` (default) | post-lint, protect-config, stop-check, suggest-compact | Day-to-day development |
+| `standard` (default) | post-lint, protect-config, stop-check, suggest-compact, git-guard | Day-to-day development |
 | `strict` | all of standard (+ future hooks) | Pre-release, hardening branches |
 
 ```bash
