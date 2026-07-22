@@ -15,6 +15,22 @@ pre-commit:
     #   run: golangci-lint run {staged_files}
     # typecheck:
     #   run: npm run typecheck  # or: mypy . / go vet ./...
+    #   skip:
+    #     - merge
+    #     - rebase
+    # lint-with-autofix example (stage_fixed commits formatter output):
+    # lint-ts:
+    #   glob: "*.{ts,tsx,js,jsx}"
+    #   run: npx biome check --write --no-errors-on-unmatched {staged_files}
+    #   stage_fixed: true
+
+# pre-push:
+#   commands:
+#     test:
+#       run: npm test  # or: make test / pytest / go test ./...
+#       skip:
+#         - merge
+#         - rebase
 
 commit-msg:
   commands:
