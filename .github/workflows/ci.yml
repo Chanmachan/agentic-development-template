@@ -19,11 +19,14 @@ on:
 permissions:
   contents: read
 
-# Cancel superseded runs on the same branch/PR so pushes don't queue up
-# redundant CI runs against stale commits.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Only cancel in-progress runs for PRs (rapid pushes to the same PR branch
+  # superseding stale runs is fine). Never cancel a main-push run: a deploy
+  # workflow may gate on this workflow's success (workflow_run), so an
+  # in-flight main CI run must always finish and report a real conclusion for
+  # every merged commit.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   doc-health:
@@ -88,3 +91,19 @@ jobs:
           fi
           echo "Checking: ${files[*]}"
           shellcheck --severity=error "${files[@]}"
+
+  # Uncomment once a language stack is chosen (see README "Checklist: What to
+  # Edit When Starting a New Project"). Runs `pnpm audit --audit-level=moderate`
+  # (or the equivalent for your package manager) and reports findings without
+  # failing CI while the dependency surface is still being established.
+  # security-audit:
+  #   name: Security Audit
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+  #     - uses: pnpm/action-setup@... # pin SHA once stack is chosen
+  #     - uses: actions/setup-node@... # pin SHA once stack is chosen
+  #       with:
+  #         node-version-file: ./.node-version
+  #     - run: pnpm audit --audit-level=moderate
+  #       continue-on-error: true
