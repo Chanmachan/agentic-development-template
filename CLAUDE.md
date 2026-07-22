@@ -29,7 +29,8 @@ See: @AGENTS.md
 ## Skills and subagents
 
 - `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `context-{dev,review,research,debug}` (オンデマンドロード)
-- `.claude/agents/` — `planner`, `code-reviewer`, `investigator` (委譲時にロード)
+- `.claude/agents/` — `planner`, `code-reviewer`, `investigator`, `enumerator` (委譲時にロード)
+- `.claude/rules/` は全て読むこと。索引: `git` / `tasks` / `pitfalls` (技術的落とし穴、セッション開始時に一読) / `model-roles` (モデル役割分担)
 
 ## Hook profiles and contexts
 
