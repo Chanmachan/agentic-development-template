@@ -150,13 +150,70 @@ lint_out="$(bash "$SCRIPT" lint 2>&1)"
 lint_rc=$?
 set -e
 [ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail when todo file missing (rc=$lint_rc)"; fail=1; }
-assert_match "FAIL: line 1: todo file not found: tasks/missing-todo.md" "$lint_out"
+assert_match "FAIL: line 1: todo is not a file: tasks/missing-todo.md" "$lint_out"
 
-# 13. lint: empty registry
+# 13. lint: missing registry file
 rm -f "$REG"
 lint_out="$(bash "$SCRIPT" lint 2>&1)"; lint_rc=$?
 [ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on missing registry (rc=$lint_rc)"; fail=1; }
 assert_match "OK: 0 tasks" "$lint_out"
+
+# 14. lint: empty (0-byte) registry file
+: >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on 0-byte registry (rc=$lint_rc)"; fail=1; }
+assert_match "OK: 0 tasks" "$lint_out"
+
+# 15. lint: whitespace-only registry file
+printf '\n  \n' >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on whitespace-only registry (rc=$lint_rc)"; fail=1; }
+assert_match "OK: 0 tasks" "$lint_out"
+
+# 16. lint: non-dict JSON row (null) — must error, not traceback
+printf '%s\n' 'null' >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on non-dict row (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: invalid row" "$lint_out"
+
+# 17. lint: missing status vs null status vs invalid enum
+cat >"$REG" <<'EOF'
+{"id": "no-status", "todo": "tasks/no-status-todo.md"}
+{"id": "null-status", "status": null, "todo": "tasks/null-status-todo.md"}
+EOF
+touch tasks/no-status-todo.md tasks/null-status-todo.md
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on missing/null status (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: missing status" "$lint_out"
+assert_match "FAIL: line 2: status is null" "$lint_out"
+
+# 18. lint: non-done row requires non-empty todo; directory path is not a file
+mkdir -p tasks
+cat >"$REG" <<'EOF'
+{"id": "no-todo", "status": "planned"}
+{"id": "null-todo", "status": "planned", "todo": null}
+{"id": "dir-todo", "status": "planned", "todo": "tasks"}
+EOF
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on missing/null/dir todo (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: missing or empty todo" "$lint_out"
+assert_match "FAIL: line 2: missing or empty todo" "$lint_out"
+assert_match "FAIL: line 3: todo is not a file: tasks" "$lint_out"
 
 if [ "$fail" -ne 0 ]; then
   echo "---"
