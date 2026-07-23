@@ -90,6 +90,20 @@ for file in "${POINTER_FILES[@]}"; do
     [[ "$path" == *'$('* ]] && continue
     # Skip placeholder paths like tasks/<id>-todo.md, docs/pages/<role>/
     [[ "$path" == *"<"* || "$path" == *">"* ]] && continue
+    # Skip URIs (e.g. GitHub PR links in command docs)
+    [[ "$path" == *"://"* ]] && continue
+    # Skip line-number annotations like path/to/file.ext:42
+    [[ "$path" =~ :[0-9]+$ ]] && continue
+    # Skip ellipsis examples like feature/..., fix/...
+    [[ "$path" == *"..."* ]] && continue
+    # Skip placeholder path prefixes used in agent/review templates
+    [[ "$path" =~ ^path/to/ ]] && continue
+    # Skip branch-name examples without a file extension (git.md, plan-mode)
+    [[ "$path" =~ ^(feature|fix|update|refactor|chore|docs)/ ]] && [[ "$path" != *.* ]] && continue
+    # Skip .git/ — in worktrees .git is a file, so .git/ does not exist
+    [[ "$path" == .git/ || "$path" == */.git/ ]] && continue
+    # Skip directory references with trailing slash (e.g. __tests__/)
+    [[ "$path" == */ ]] && continue
 
     if [[ "$path" == */* ]] && [ ! -e "$path" ]; then
       echo "WARN: Broken pointer in $file: $path"
