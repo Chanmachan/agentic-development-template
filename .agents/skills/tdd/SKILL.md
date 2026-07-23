@@ -10,7 +10,12 @@ description: Use when implementing a new feature, fixing a bug, or making any be
 - 観察可能な振る舞いを変える変更すべて (新機能、バグ修正、リファクタの一部)
 - テストが存在する領域、または新しく追加すべき領域
 
-スキップしてよい場面: ドキュメントのみの変更、`.claude/` / `.agents/` / `.codex/` 内のルール/skill/agent 編集、設定ファイルのみ、テストが書けない UI 試作の最初のスケッチ。**スケッチが動いたら必ずテストを追加する** — 「試作なので」を理由に TDD を回避し続けない。
+skip 可 (いずれか該当):
+
+- ドキュメントのみの変更
+- `.claude/` / `.agents/` / `.codex/` 内のルール・skill・agent 編集
+- 設定ファイルのみ
+- テストが書けない UI 試作の初回スケッチ (ただし**スケッチが動いたら必ずテストを追加する** — 「試作なので」を理由に TDD を回避し続けない)
 
 ## 4 step loop
 
@@ -29,6 +34,7 @@ description: Use when implementing a new feature, fixing a bug, or making any be
 
 - 期待する振る舞いを表す**最小**のテストを 1 つ書く
 - テストを実行し、**期待した理由で失敗する**ことを確認する (コンパイルエラーや import 漏れではなく)
+  - 確認方法: テスト実行コマンドの出力にそのテスト名の FAIL が出ているのを見る。コンパイルエラーは「期待した失敗」ではない
 - この段階で実装を書かない
 
 テスト名は「何を保証するか」を述べる: `returns_404_when_user_not_found` のように。
