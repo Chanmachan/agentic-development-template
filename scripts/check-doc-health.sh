@@ -99,7 +99,7 @@ for file in "${POINTER_FILES[@]}"; do
     # Skip placeholder path prefixes used in agent/review templates
     [[ "$path" =~ ^path/to/ ]] && continue
     # Skip branch-name examples without a file extension (git.md, plan-mode)
-    [[ "$path" =~ ^(feature|fix|update|refactor|chore|docs)/ ]] && [[ "$path" != *.* ]] && continue
+    [[ "$path" =~ ^(feature|fix|update|refactor|chore)/ ]] && [[ "$path" != *.* ]] && continue
     # Skip .git/ — in worktrees .git is a file, so .git/ does not exist
     [[ "$path" == .git/ || "$path" == */.git/ ]] && continue
     # Skip known example directory references with trailing slash (e.g. __tests__/)
