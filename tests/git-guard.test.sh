@@ -88,6 +88,61 @@ for HOOK in "${HOOKS[@]}"; do
       || bad "should allow on feature branch: $c (rc=$RC out=$OUT)"
   done
 
+  echo "$label (parser bypass regressions)"
+  # Each of these was a reproduced bypass of the original split/strip parser:
+  # git global options before the subcommand, bundled short-flag clusters,
+  # quote-aware separators/options, and the escape hatch read out of quoted
+  # message text.
+  for c in 'git -c user.email=x@y commit --no-verify -m "msg"' \
+           'git commit -qn -m "msg"' \
+           'git push -fv origin main'; do
+    run_hook "$HOOK" "$MAIN_REPO" "$(json_cmd "$c")"
+    [ "$RC" -eq 2 ] && ok "block: $c" || bad "should block: $c (rc=$RC out=$OUT)"
+  done
+
+  for c in 'git commit -m "topic; detail" --no-verify' \
+           'git commit "--no-verify" -m "msg"'; do
+    run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd "$c")"
+    [ "$RC" -eq 2 ] && ok "block: $c (feature branch)" \
+      || bad "should block regardless of quoting: $c (rc=$RC out=$OUT)"
+  done
+
+  # Escape hatch must only count as a real leading env-assignment, never as
+  # text inside a quoted argument.
+  run_hook "$HOOK" "$MAIN_REPO" "$(json_cmd 'git commit -m "set ALLOW_MAIN_COMMIT=1 for docs"')"
+  [ "$RC" -eq 2 ] && ok "block: ALLOW_MAIN_COMMIT=1 inside message text does not unlock main" \
+    || bad "escape hatch in message text should not unlock main (rc=$RC out=$OUT)"
+
+  # git -C <dir> moves the commit's repo just like a shell cd — the branch
+  # check must follow it (both variants: -C is git-level, not shell-level).
+  run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd "git -C $MAIN_REPO commit -m \"msg\"")"
+  [ "$RC" -eq 2 ] && ok "block: git -C <main checkout> commit (from feature branch)" \
+    || bad "git -C into main checkout should block commit (rc=$RC out=$OUT)"
+
+  # Newline is a command separator like ';' — a git segment after a non-git
+  # line must still be scanned.
+  run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd 'echo hi
+git commit --no-verify')"
+  [ "$RC" -eq 2 ] && ok "block: --no-verify in newline-separated second command" \
+    || bad "newline-separated git segment should be scanned (rc=$RC out=$OUT)"
+
+  echo "$label (parser false-positive fixes)"
+  # -m consumes the next token as the MESSAGE, even if it looks like a flag.
+  run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd 'git commit -m --no-verify')"
+  [ "$RC" -eq 0 ] && ok "allow: git commit -m --no-verify (flag-looking message arg)" \
+    || bad "-m argument must not be scanned as a flag (rc=$RC out=$OUT)"
+
+  # Force-push target comes from the destination refspec, not a substring
+  # scan — feature/main-refactor is not main.
+  run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd 'git push --force origin feature/main-refactor')"
+  [ "$RC" -eq 0 ] && ok "allow: force-push to feature/main-refactor (feature branch)" \
+    || bad "force-push to feature/main-refactor should allow (rc=$RC out=$OUT)"
+
+  # …while a refspec whose DESTINATION is main still blocks.
+  run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd 'git push --force origin HEAD:main')"
+  [ "$RC" -eq 2 ] && ok "block: force-push HEAD:main (feature branch)" \
+    || bad "force-push with dst main should block (rc=$RC out=$OUT)"
+
   echo "$label (no false positives from quoted text)"
   # Flag-looking text inside quotes, and `git` not in command position, must
   # not trigger the block rules.
@@ -111,6 +166,13 @@ for HOOK in "${HOOKS[@]}"; do
     run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd "cd $MAIN_REPO && git commit -m \"msg\"")"
     [ "$RC" -eq 2 ] && ok "block: cd <main checkout> && git commit (from feature branch)" \
       || bad "cd into main checkout should block commit (rc=$RC out=$OUT)"
+
+    # cd is tracked PER SEGMENT, in order — a later feature-worktree cd must
+    # not launder an earlier main-worktree commit (reproduced bypass of the
+    # original last-cd-wins resolution).
+    run_hook "$HOOK" "$FEAT_REPO" "$(json_cmd "cd $MAIN_REPO && git commit -m \"a\" && cd $FEAT_REPO && git commit -m \"b\"")"
+    [ "$RC" -eq 2 ] && ok "block: main-worktree commit before a later feature-worktree cd" \
+      || bad "per-segment cd tracking should block the first commit (rc=$RC out=$OUT)"
   fi
 
   echo "$label (fail-open edge cases)"
