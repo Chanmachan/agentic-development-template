@@ -8,6 +8,46 @@ input="$(cat)"
 file="$(jq -r '.tool_input.file_path // .tool_input.path // empty' <<< "$input")"
 [ -z "$file" ] && exit 0
 
+# Skip files that resolve outside this repo (e.g. scratchpad/session temp
+# dirs). Compare physical paths: `git rev-parse --show-toplevel` resolves
+# symlinks, so the file's directory (`cd -P`: physical traversal, a logical
+# `cd` would let `in-repo-link/../` escape undetected) and any symlinked
+# final component (readlink loop) must be resolved the same way — otherwise
+# macOS's /var -> /private/var symlink makes in-repo files look "outside",
+# and an in-repo symlink to an outside file would look "inside". Relative
+# paths resolve against the hook's cwd, so `../escape.ts`-style paths are
+# caught too. Unresolvable paths fail closed (skip): a missing directory
+# can't be linted, and a final component still symlinked after the hop bound
+# (long chain / cycle) has an unknown true target that must not be linted
+# under its in-repo name.
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$repo_root" ]; then
+  real_dir="$(cd -P "$(dirname -- "$file")" 2>/dev/null && pwd -P)" || real_dir=""
+  [ -z "$real_dir" ] && exit 0
+  real_file="$real_dir/$(basename -- "$file")"
+  hops=0
+  while [ -L "$real_file" ] && [ "$hops" -lt 8 ]; do
+    target="$(readlink "$real_file")" || break
+    case "$target" in
+      /*) ;;
+      *) target="$(dirname -- "$real_file")/$target" ;;
+    esac
+    real_dir="$(cd -P "$(dirname -- "$target")" 2>/dev/null && pwd -P)" || real_dir=""
+    [ -z "$real_dir" ] && exit 0
+    real_file="$real_dir/$(basename -- "$target")"
+    hops=$((hops + 1))
+  done
+  [ -L "$real_file" ] && exit 0
+  # A final `.`/`..` component is a directory reference, never a lintable
+  # file — and "$repo_root/.." would string-prefix-match "$repo_root"/* while
+  # physically resolving to a parent (potentially outside), so skip it.
+  case "$(basename -- "$real_file")" in .|..) exit 0 ;; esac
+  case "$real_file" in
+    "$repo_root"/*) ;;
+    *) exit 0 ;;
+  esac
+fi
+
 diag=""
 
 case "$file" in
