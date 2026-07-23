@@ -158,9 +158,15 @@ rm -rf "$FIXTURE"
 # ---------------------------------------------------------------------------
 echo "post-lint.sh"
 FAKEBIN="$(mktemp -d)"; BIOME_SENTINEL="$FAKEBIN/biome-ran"; OXLINT_SENTINEL="$FAKEBIN/oxlint-ran"
+# post-lint.sh no-ops for files outside the repo it runs from, so this fixture
+# is its own throwaway git repo — that makes $FAKEBIN itself the resolved repo
+# root and keeps the "in-repo edit" path under test. mktemp lives under a
+# symlinked path on macOS (/var -> /private/var), so these cases also verify
+# the guard compares symlink-resolved paths.
+git -C "$FAKEBIN" init -q
 printf '#!/usr/bin/env bash\necho ran >> "%s"\nexit 0\n' "$BIOME_SENTINEL" > "$FAKEBIN/biome"; chmod +x "$FAKEBIN/biome"
 printf '#!/usr/bin/env bash\necho ran >> "%s"\nexit 0\n' "$OXLINT_SENTINEL" > "$FAKEBIN/oxlint"; chmod +x "$FAKEBIN/oxlint"
-run_postlint() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; printf '%s' "$1" | PATH="$FAKEBIN:$PATH" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
+run_postlint() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; ( cd "$FAKEBIN" && printf '%s' "$1" | PATH="$FAKEBIN:$PATH" bash "$HOOKS_DIR/post-lint.sh" ) >/dev/null 2>&1; RC=$?; }
 echo 'const x=1' > "$FAKEBIN/sample.ts"
 run_postlint "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
 { [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok ".ts edit invokes biome and oxlint" || bad ".ts edit should invoke both formatters (rc=$RC)"
@@ -169,6 +175,49 @@ run_postlint "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.tsx")"
 { [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok ".tsx edit invokes biome and oxlint" || bad ".tsx edit should invoke both formatters (rc=$RC)"
 run_postlint "$(printf '{"file_path":"%s/notes.md"}' "$FAKEBIN")"
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok ".md edit is a no-op" || bad ".md edit should no-op (rc=$RC)"
+# Repo-root guard: run from this repo with an absolute path into $FAKEBIN
+# (outside this repo root) — the hook must skip it instead of formatting.
+run_postlint_outside() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; ( cd "$REPO_ROOT" && printf '%s' "$1" | PATH="$FAKEBIN:$PATH" bash "$HOOKS_DIR/post-lint.sh" ) >/dev/null 2>&1; RC=$?; }
+run_postlint_outside "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "absolute path outside repo root is a no-op" || bad "outside-repo edit should no-op (rc=$RC)"
+# Explicit escape fixtures, independent of macOS's /var alias (absent on Linux
+# CI): $OUTSIDE is a sibling temp dir holding the escape targets.
+OUTSIDE="$(mktemp -d)"
+echo 'const y=2' > "$OUTSIDE/escape.ts"
+ln -s "$OUTSIDE/escape.ts" "$FAKEBIN/link.ts"
+ln -s "$FAKEBIN" "$OUTSIDE/repo-alias"
+run_postlint "$(printf '{"file_path":"../%s/escape.ts"}' "$(basename "$OUTSIDE")")"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "relative path escaping repo root is a no-op" || bad "relative escape should no-op (rc=$RC)"
+run_postlint "$(printf '{"file_path":"%s/link.ts"}' "$FAKEBIN")"
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "in-repo symlink to outside file is a no-op" || bad "symlink escape should no-op (rc=$RC)"
+run_postlint '{"file_path":"sample.ts"}'
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "in-repo relative path still invokes formatters" || bad "in-repo relative path should format (rc=$RC)"
+run_postlint "$(printf '{"file_path":"%s/repo-alias/sample.ts"}' "$OUTSIDE")"
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "in-repo file via symlinked dir still invokes formatters" || bad "symlinked-dir in-repo path should format (rc=$RC)"
+# Logical traversal escape: an in-repo symlink as an intermediate component
+# followed by `..` — logical cd would land back inside the repo, physical
+# traversal lands in $OUTSIDE where escape.ts actually lives.
+mkdir "$OUTSIDE/deep"
+ln -s "$OUTSIDE/deep" "$FAKEBIN/midlink"
+run_postlint '{"file_path":"midlink/../escape.ts"}'
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "intermediate-symlink/../ escape is a no-op" || bad "intermediate-symlink escape should no-op (rc=$RC)"
+# Hop-bound fail-closed: a chain longer than the readlink hop bound whose end
+# lies outside the repo must be skipped, not linted as its in-repo link name.
+ln -s "$OUTSIDE/escape.ts" "$FAKEBIN/chain-9.ts"
+for i in 8 7 6 5 4 3 2 1; do ln -s "$FAKEBIN/chain-$((i + 1)).ts" "$FAKEBIN/chain-$i.ts"; done
+run_postlint '{"file_path":"chain-1.ts"}'
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "over-hop-bound symlink chain to outside is a no-op" || bad "long symlink chain should no-op (rc=$RC)"
+# A symlink target whose final component is `..` leaves a resolved path that
+# still string-prefix-matches the repo root while physically resolving to a
+# parent directory (here: $FAKEBIN's parent, outside the repo) — must skip.
+mkdir "$FAKEBIN/subdir"
+ln -s 'subdir/../..' "$FAKEBIN/dotdot.ts"
+run_postlint '{"file_path":"dotdot.ts"}'
+{ [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "symlink target ending in /.. is a no-op" || bad "dot-dot symlink target should no-op (rc=$RC)"
+echo 'const d=1' > "$FAKEBIN/-dash.ts"
+run_postlint '{"file_path":"-dash.ts"}'
+{ [ "$RC" -eq 0 ] && [ -f "$BIOME_SENTINEL" ] && [ -f "$OXLINT_SENTINEL" ]; } && ok "dash-prefixed in-repo file still invokes formatters" || bad "dash-prefixed file should format (rc=$RC)"
+rm -rf "$OUTSIDE"
 run_postlint '{"hook_event_name":"afterFileEdit"}'
 { [ "$RC" -eq 0 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing path is a no-op" || bad "missing path should no-op (rc=$RC)"
 # Pin current behavior when the formatters are absent from PATH: post-lint.sh
@@ -183,7 +232,7 @@ run_postlint '{"hook_event_name":"afterFileEdit"}'
 JQ_BIN="$(command -v jq)" || { bad "jq not found on PATH; cannot run missing-formatter fixture"; JQ_BIN=""; }
 JQPATH="$(mktemp -d)"
 [ -n "$JQ_BIN" ] && ln -s "$JQ_BIN" "$JQPATH/jq"
-run_postlint_nopath() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; printf '%s' "$1" | PATH="$JQPATH:/usr/bin:/bin" bash "$HOOKS_DIR/post-lint.sh" >/dev/null 2>&1; RC=$?; }
+run_postlint_nopath() { rm -f "$BIOME_SENTINEL" "$OXLINT_SENTINEL"; ( cd "$FAKEBIN" && printf '%s' "$1" | PATH="$JQPATH:/usr/bin:/bin" bash "$HOOKS_DIR/post-lint.sh" ) >/dev/null 2>&1; RC=$?; }
 run_postlint_nopath "$(printf '{"file_path":"%s"}' "$FAKEBIN/sample.ts")"
 { [ "$RC" -eq 1 ] && [ ! -f "$BIOME_SENTINEL" ] && [ ! -f "$OXLINT_SENTINEL" ]; } && ok "missing formatter exits 1 without formatting (pinned)" || bad "missing-formatter behavior changed (rc=$RC)"
 rm -rf "$FAKEBIN" "$JQPATH"
