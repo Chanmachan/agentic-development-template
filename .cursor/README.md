@@ -75,7 +75,7 @@ Cursor の hook は6イベント(`beforeShellExecution` / `beforeMCPExecution` /
   名を足しても無害(マッチしないだけ)。実際の tool 種別の taxonomy は初回ハンドオフで確認する。
 - **stop-check は full**(lint+type+test)で `.claude`/`.codex` とパリティ。`loop_count` で無限ループを防止
   (既定上限 2、`CURSOR_STOP_LOOP_LIMIT` で調整可)。
-- `strict` は ADR 0003 では `suggest-compact` 等も含むが Cursor へ未移植なので、本ハーネスでは
+- ADR 0003 の `suggest-compact`(standard 以上)は Cursor へ未移植なので、本ハーネスでは
   `strict` ≒ `standard`(6フック)。`minimal` は post-lint のみ。
 
 ### 環境変数オーバーライド
