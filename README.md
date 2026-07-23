@@ -182,7 +182,7 @@ These run automatically when the configured agent writes code:
 | Before commit (Lefthook `commit-msg`) | Rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`; `Merge`/`Revert` exempted) |
 | On every PR / push to `main` (GitHub Actions) | Agent-independent backstop: doc-health, the `tests/*.test.sh` suite, and shellcheck re-run in CI regardless of whether local hooks ran — see ADR 0007 |
 
-`check-doc-health.sh` warns/errors on ADR staleness based on `DOC_HEALTH_WARN_DAYS` (default `14`) and `DOC_HEALTH_ERROR_DAYS` (default `30`) days since `Last-validated`. Non-numeric values fall back to the default with a WARN.
+`check-doc-health.sh` emits WARN (non-blocking) on ADR staleness based on `DOC_HEALTH_WARN_DAYS` (default `14`) and `DOC_HEALTH_ERROR_DAYS` (default `30`) days since `Last-validated`; both thresholds only differ in message wording — neither fails the check. Non-numeric values fall back to the default with a WARN.
 
 ---
 
