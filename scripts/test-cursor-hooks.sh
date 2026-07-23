@@ -241,16 +241,27 @@ rm -rf "$FAKEBIN" "$JQPATH"
 # stop-check.sh — stop: followup_message on failure, loop guard
 # ---------------------------------------------------------------------------
 echo "stop-check.sh"
+git_quiet() { git -c user.email=test@example.com -c user.name=test "$@" >/dev/null 2>&1; }
 make_toolchain() { # $1=exit code
   local dir; dir="$(mktemp -d)"; echo '{}' > "$dir/package.json"; : > "$dir/pnpm-lock.yaml"
+  # stop-check.sh skips the full gate when `git status --porcelain` is empty
+  # or docs/tasks/md-only, so this fixture needs its own git repo with a
+  # non-doc pending change to reach the lint/typecheck/test run under test.
+  git_quiet -C "$dir" init
+  echo 'x' > "$dir/src.ts"
   mkdir "$dir/bin"; local t
-  for t in pnpm make; do printf '#!/usr/bin/env bash\nexit %s\n' "$1" > "$dir/bin/$t"; chmod +x "$dir/bin/$t"; done
+  # The fake tools print numbered lines (OUT_01..OUT_40) before exiting so the
+  # last-30-lines tail in the followup message is observable.
+  for t in pnpm make; do printf '#!/usr/bin/env bash\nfor i in $(seq -w 1 40); do echo "OUT_$i"; done\nexit %s\n' "$1" > "$dir/bin/$t"; chmod +x "$dir/bin/$t"; done
   echo "$dir"
 }
 run_stop() { OUT="$(cd "$1" && printf '%s' "$2" | PATH="$1/bin:$PATH" bash "$HOOKS_DIR/stop-check.sh" 2>/dev/null)"; RC=$?; }
 FAILDIR="$(make_toolchain 1)"
 run_stop "$FAILDIR" '{"loop_count":0}'
 { echo "$OUT" | grep -q 'followup_message' && echo "$OUT" | grep -q 'Do not stop yet'; } && ok "failing checks emit followup" || bad "failing should emit followup (out=$OUT)"
+{ echo "$OUT" | grep -q 'OUT_40' && echo "$OUT" | grep -q 'OUT_11'; } && ok "followup includes failing output tail" || bad "followup should include output tail (out=$OUT)"
+echo "$OUT" | grep -q 'OUT_10' && bad "followup should truncate to last 30 lines (OUT_10 leaked)" || ok "output tail is truncated to last 30 lines"
+echo "$OUT" | grep -q '設定を緩め' && ok "followup forbids loosening configs/deleting tests" || bad "followup should forbid config loosening (out=$OUT)"
 run_stop "$FAILDIR" '{"loop_count":1}'
 echo "$OUT" | grep -q 'followup_message' && ok "below limit still nudges" || bad "loop_count=1 should nudge (out=$OUT)"
 run_stop "$FAILDIR" '{"loop_count":2}'
@@ -261,17 +272,68 @@ export CURSOR_STOP_LOOP_LIMIT=3
 run_stop "$FAILDIR" '{"loop_count":2}'
 echo "$OUT" | grep -q 'followup_message' && ok "CURSOR_STOP_LOOP_LIMIT raises threshold (loop_count=2 nudges)" || bad "limit override should nudge (out=$OUT)"
 unset CURSOR_STOP_LOOP_LIMIT
+export CURSOR_STOP_LOOP_LIMIT=abc
+run_stop "$FAILDIR" '{"loop_count":2}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "non-numeric CURSOR_STOP_LOOP_LIMIT falls back to default (loop_count=2 silent)" || bad "non-numeric limit should fall back to 2 (rc=$RC out=$OUT)"
+unset CURSOR_STOP_LOOP_LIMIT
 rm -rf "$FAILDIR"
 PASSDIR="$(make_toolchain 0)"
 run_stop "$PASSDIR" '{"loop_count":0}'
 { [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "passing checks stay silent" || bad "passing should be silent (rc=$RC out=$OUT)"
 rm -rf "$PASSDIR"
 
+# Docs-only skip: with the toolchain committed and only md/docs/tasks paths
+# pending, the gate must stay silent even though every check would fail.
+SKIPDIR="$(make_toolchain 1)"
+git_quiet -C "$SKIPDIR" add -A
+git_quiet -C "$SKIPDIR" commit -m fixture
+run_stop "$SKIPDIR" '{"loop_count":0}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "clean tree skips checks" || bad "clean tree should skip (rc=$RC out=$OUT)"
+mkdir -p "$SKIPDIR/docs" "$SKIPDIR/tasks"
+echo 'n' > "$SKIPDIR/note.md"; echo 'n' > "$SKIPDIR/docs/adr.txt"; echo 'n' > "$SKIPDIR/tasks/todo.txt"
+run_stop "$SKIPDIR" '{"loop_count":0}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "md/docs/tasks-only changes skip checks" || bad "docs-only should skip (rc=$RC out=$OUT)"
+echo 'x' > "$SKIPDIR/other.ts"
+run_stop "$SKIPDIR" '{"loop_count":0}'
+echo "$OUT" | grep -q 'followup_message' && ok "docs + one code change still runs the gate" || bad "mixed change should emit followup (out=$OUT)"
+rm -rf "$SKIPDIR"
+
+# Porcelain edge cases: a staged code→docs rename reports two paths and must
+# NOT be treated as docs-only (code was removed); docs→docs renames and md
+# paths that the human porcelain format would C-quote (spaces/non-ASCII)
+# must still skip.
+RENDIR="$(make_toolchain 1)"
+git_quiet -C "$RENDIR" add -A
+git_quiet -C "$RENDIR" commit -m seed
+mkdir -p "$RENDIR/docs"
+git_quiet -C "$RENDIR" mv src.ts docs/src.md
+run_stop "$RENDIR" '{"loop_count":0}'
+echo "$OUT" | grep -q 'followup_message' && ok "code-to-docs rename still runs the gate" || bad "code-to-docs rename should emit followup (out=$OUT)"
+git_quiet -C "$RENDIR" commit -m mv1
+echo 'n' > "$RENDIR/note.md"
+git_quiet -C "$RENDIR" add -A
+git_quiet -C "$RENDIR" commit -m note
+git_quiet -C "$RENDIR" mv note.md docs/note.txt
+run_stop "$RENDIR" '{"loop_count":0}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "docs-to-docs rename skips checks" || bad "docs-to-docs rename should skip (rc=$RC out=$OUT)"
+git_quiet -C "$RENDIR" commit -m mv2
+echo 'n' > "$RENDIR/a b.md"
+echo 'n' > "$RENDIR/日本語.md"
+git_quiet -C "$RENDIR" add -A
+git_quiet -C "$RENDIR" commit -m quoted
+echo 'edit' >> "$RENDIR/a b.md"
+echo 'edit' >> "$RENDIR/日本語.md"
+run_stop "$RENDIR" '{"loop_count":0}'
+{ [ "$RC" -eq 0 ] && [ -z "$OUT" ]; } && ok "md paths with spaces/non-ASCII skip checks" || bad "quote-worthy md paths should skip (rc=$RC out=$OUT)"
+rm -rf "$RENDIR"
+
 # Makefile routing: a Makefile with a `test:` target takes priority over
 # package.json/pnpm/npm below it.
 make_toolchain_makefile() { # $1=exit code
   local dir; dir="$(mktemp -d)"
   printf 'test:\n\techo test\n' > "$dir/Makefile"
+  git_quiet -C "$dir" init
+  echo 'x' > "$dir/src.ts"
   mkdir "$dir/bin"
   printf '#!/usr/bin/env bash\nexit %s\n' "$1" > "$dir/bin/make"; chmod +x "$dir/bin/make"
   echo "$dir"
@@ -285,6 +347,8 @@ rm -rf "$MAKEDIR"
 # field routes to npm run lint/typecheck/npm test.
 make_toolchain_npm() { # $1=exit code
   local dir; dir="$(mktemp -d)"; echo '{}' > "$dir/package.json"
+  git_quiet -C "$dir" init
+  echo 'x' > "$dir/src.ts"
   mkdir "$dir/bin"
   printf '#!/usr/bin/env bash\nexit %s\n' "$1" > "$dir/bin/npm"; chmod +x "$dir/bin/npm"
   echo "$dir"
