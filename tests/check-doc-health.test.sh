@@ -358,3 +358,53 @@ if [ "$fail_6" -ne 0 ]; then
   exit 1
 fi
 echo "OK: extended pointer scan hits broken refs and skips glob/placeholder patterns"
+
+# ── Section 7: skip URI, line-number annotations, and example patterns ────────
+TMP7="$(mktemp -d)"
+CLEANUP_DIRS="$CLEANUP_DIRS $TMP7"
+
+mkdir -p "$TMP7/docs"
+
+cat >"$TMP7/AGENTS.md" <<'EOF'
+# Fixture
+- URI: `https://github.com/owner/repo/pull/123`
+- Branch ellipsis: `feature/...`
+- Branch ellipsis: `fix/...`
+- Placeholder path: `path/to/file.ext:42`
+- Branch example: `feature/issue_234/custom-notification-timing`
+- Real broken pointer: `missing/example-ref.md`
+EOF
+
+output7="$(cd "$TMP7" && bash "$HOOK" 2>&1)"; rc7=$?
+fail_7=0
+
+[ "$rc7" -eq 0 ] || { echo "FAIL [7]: pointer WARN should not fail (rc=$rc7)"; fail_7=1; }
+assert_no_match7() {
+  local pattern="$1"
+  if grep -qF "$pattern" <<<"$output7"; then
+    echo "FAIL [7]: expected no match for: $pattern"
+    fail_7=1
+  fi
+}
+assert_match7() {
+  local pattern="$1"
+  if ! grep -qF "$pattern" <<<"$output7"; then
+    echo "FAIL [7]: expected match for: $pattern"
+    fail_7=1
+  fi
+}
+
+assert_no_match7 "Broken pointer in AGENTS.md: https://github.com/owner/repo/pull/123"
+assert_no_match7 "Broken pointer in AGENTS.md: feature/..."
+assert_no_match7 "Broken pointer in AGENTS.md: fix/..."
+assert_no_match7 "Broken pointer in AGENTS.md: path/to/file.ext:42"
+assert_no_match7 "Broken pointer in AGENTS.md: feature/issue_234/custom-notification-timing"
+assert_match7 "Broken pointer in AGENTS.md: missing/example-ref.md"
+
+if [ "$fail_7" -ne 0 ]; then
+  echo "---"
+  echo "Actual output [7]:"
+  echo "$output7"
+  exit 1
+fi
+echo "OK: pointer scan skips URI / line-number / example patterns"
