@@ -6,9 +6,10 @@
 
 <!--
 NOTE: This file (0000-adr-template.md) is excluded from the doc-health staleness
-check. All other ADRs (0001-*.md, etc.) must keep Last-validated less than
-DOC_HEALTH_ERROR_DAYS (default 30) days old to pass the pre-commit hook — ADRs
-without a `Last-validated:` line are skipped, not failed.
+check. All other ADRs (0001-*.md, etc.) should keep Last-validated reasonably
+fresh; stale ADRs emit a non-blocking WARN via check-doc-health.sh (see
+DOC_HEALTH_WARN_DAYS / DOC_HEALTH_ERROR_DAYS — both thresholds are WARN-only).
+ADRs without a `Last-validated:` line are skipped, not failed.
 -->
 
 ## Context
