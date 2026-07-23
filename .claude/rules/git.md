@@ -49,9 +49,10 @@ Examples:
 - `fix: correct notification schedule time offset`
 - `refactor: replace NotificationTiming enum with class`
 
-## Co-author
+## Co-author / tool attribution
 
-Do not add `Co-Authored-By` to commit messages.
+- Do not add `Co-Authored-By` to commit messages.
+- Do not add tool attribution footers (e.g. "🤖 Generated with Claude Code" / "Generated with Cursor") to commit messages or PR bodies.
 
 ## Pull Request Template
 
