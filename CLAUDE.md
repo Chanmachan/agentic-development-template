@@ -29,6 +29,7 @@ See: @AGENTS.md
 ## Skills and subagents
 
 - `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `context-{dev,review,research,debug}` (オンデマンドロード)
+- `.agents/skills/` — `fix-review`, `handoff`, `land-task`, `multi-review`, `review-cycle`, `verify-guide` (Codex workflow / オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator`, `enumerator` (委譲時にロード)
 - `.claude/rules/` 索引: `git` / `tasks` / `pitfalls` / `model-roles`。path frontmatter の無い rule (`git` / `pitfalls` / `model-roles`) はセッション開始時に一読。`tasks` rule は ADR 0009 の path-scoping に従い、tasks 配下や `scripts/sync-tasks.sh` を触るときだけロードされる (ただし `tasks/tasks.jsonl` のセッション開始スキャンは上記 Task tracking の明示指示であり、rule ロードの例外)。
 
