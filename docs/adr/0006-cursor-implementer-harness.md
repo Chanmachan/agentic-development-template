@@ -33,7 +33,7 @@ ADR 0002 (Skills-first architecture) は Rules / Skills / Subagents / Hooks の4
 3. **`HOOK_PROFILE` の profile 帰属は ADR 0003 を土台に、Cursor 固有の保護フックを足す**。Cursor の
    `standard` は **6 フック** = post-lint, protect-config, **protect-read, protect-shell**, stop-check,
    **enforce-model** (protect-read/protect-shell は protect-config の兄弟ガード、enforce-model はモデル強制)。
-   minimal=post-lint のみ。strict 専用フック (ADR 0003 の `suggest-compact`) は Cursor へ未移植のため、
+   minimal=post-lint のみ。ADR 0003 の `suggest-compact` は Cursor へ未移植のため、
    本ハーネスの `strict` は実質 `standard` と同じ 6 フックになる。
 
 4. **Cursor の実イベントに合わせてアダプタを配線する**。Cursor の hook は6種
