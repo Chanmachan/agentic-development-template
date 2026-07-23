@@ -188,31 +188,54 @@ with open(reg, encoding="utf-8") as f:
             continue
 
         tid = obj.get("id")
-        if tid:
-            if tid in seen_ids:
-                errors.append(f"line {lineno}: duplicate id '{tid}' (first seen at line {seen_ids[tid]})")
-            else:
-                seen_ids[tid] = lineno
-        else:
+        if not tid:
             errors.append(f"line {lineno}: missing id")
+        elif not isinstance(tid, str):
+            errors.append(
+                f"line {lineno}: invalid row (id must be str, got {type(tid).__name__})"
+            )
+        elif tid in seen_ids:
+            errors.append(f"line {lineno}: duplicate id '{tid}' (first seen at line {seen_ids[tid]})")
+        else:
+            seen_ids[tid] = lineno
 
         status = obj.get("status")
+        status_ok = False
         if "status" not in obj:
             errors.append(f"line {lineno}: missing status")
         elif status is None:
             errors.append(f"line {lineno}: status is null")
+        elif not isinstance(status, str):
+            errors.append(
+                f"line {lineno}: invalid row (status must be str, got {type(status).__name__})"
+            )
         elif status not in VALID_STATUS:
             errors.append(
                 f"line {lineno}: invalid status '{status}' (must be one of {sorted(VALID_STATUS)})"
             )
+        else:
+            status_ok = True
 
-        if status == "done" and not obj.get("done"):
-            errors.append(f"line {lineno}: status=done but done field is null/missing")
+        if status_ok and status == "done":
+            done = obj.get("done")
+            if not isinstance(done, str) or not done:
+                if isinstance(done, str) and not done:
+                    errors.append(f"line {lineno}: status=done but done field is null/missing")
+                elif done is None or "done" not in obj:
+                    errors.append(f"line {lineno}: status=done but done field is null/missing")
+                else:
+                    errors.append(
+                        f"line {lineno}: invalid row (done must be str, got {type(done).__name__})"
+                    )
 
-        if status != "done":
+        if status_ok and status != "done":
             todo = obj.get("todo")
             if not todo:
                 errors.append(f"line {lineno}: missing or empty todo")
+            elif not isinstance(todo, str):
+                errors.append(
+                    f"line {lineno}: invalid row (todo must be str, got {type(todo).__name__})"
+                )
             else:
                 todo_path = todo if os.path.isabs(todo) else os.path.join(src, todo)
                 if not os.path.isfile(todo_path):

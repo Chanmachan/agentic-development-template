@@ -215,6 +215,24 @@ assert_match "FAIL: line 1: missing or empty todo" "$lint_out"
 assert_match "FAIL: line 2: missing or empty todo" "$lint_out"
 assert_match "FAIL: line 3: todo is not a file: tasks" "$lint_out"
 
+# 19. lint: wrong field types must error, not traceback
+cat >"$REG" <<'EOF'
+{"id": ["x"], "status": "planned", "todo": "tasks/wrong-id-todo.md"}
+{"id": "bad-status", "status": [], "todo": "tasks/bad-status-todo.md"}
+{"id": "bad-todo", "status": "planned", "todo": {"path": "tasks/bad-todo-todo.md"}}
+{"id": "done-bool", "status": "done", "done": true, "todo": "tasks/done-bool-todo.md"}
+EOF
+touch tasks/wrong-id-todo.md tasks/bad-status-todo.md tasks/bad-todo-todo.md tasks/done-bool-todo.md
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on wrong field types (rc=$lint_rc)"; echo "$lint_out"; fail=1; }
+assert_match "FAIL: line 1: invalid row (id must be str" "$lint_out"
+assert_match "FAIL: line 2: invalid row (status must be str" "$lint_out"
+assert_match "FAIL: line 3: invalid row (todo must be str" "$lint_out"
+assert_match "FAIL: line 4: invalid row (done must be str" "$lint_out"
+
 if [ "$fail" -ne 0 ]; then
   echo "---"
   echo "Registry contents:"

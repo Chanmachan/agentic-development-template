@@ -370,9 +370,11 @@ cat >"$TMP7/AGENTS.md" <<'EOF'
 - URI: `https://github.com/owner/repo/pull/123`
 - Branch ellipsis: `feature/...`
 - Branch ellipsis: `fix/...`
-- Placeholder path: `path/to/file.ext:42`
+- Line-number annotation: `missing/file.md:42`
+- Example directory: `__tests__/`
 - Branch example: `feature/issue_234/custom-notification-timing`
 - Real broken pointer: `missing/example-ref.md`
+- Broken directory pointer: `missing/directory/`
 EOF
 
 output7="$(cd "$TMP7" && bash "$HOOK" 2>&1)"; rc7=$?
@@ -397,9 +399,11 @@ assert_match7() {
 assert_no_match7 "Broken pointer in AGENTS.md: https://github.com/owner/repo/pull/123"
 assert_no_match7 "Broken pointer in AGENTS.md: feature/..."
 assert_no_match7 "Broken pointer in AGENTS.md: fix/..."
-assert_no_match7 "Broken pointer in AGENTS.md: path/to/file.ext:42"
+assert_no_match7 "Broken pointer in AGENTS.md: missing/file.md:42"
+assert_no_match7 "Broken pointer in AGENTS.md: __tests__/"
 assert_no_match7 "Broken pointer in AGENTS.md: feature/issue_234/custom-notification-timing"
 assert_match7 "Broken pointer in AGENTS.md: missing/example-ref.md"
+assert_match7 "Broken pointer in AGENTS.md: missing/directory/"
 
 if [ "$fail_7" -ne 0 ]; then
   echo "---"
