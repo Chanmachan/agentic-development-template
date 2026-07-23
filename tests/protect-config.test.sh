@@ -63,7 +63,8 @@ for HOOK in "${HOOKS[@]}"; do
   # hook-script pattern, plus the shared lib.profile.sh pattern.
   for p in "/repo/.claude/hooks/worktree-setup.sh" "/repo/.claude/settings.json" \
            "/repo/.cursor/hooks.json" "/repo/.codex/hooks.json" \
-           "/repo/.claude/hooks/lib/profile.sh" "/repo/.cursor/hooks/lib/profile.sh"; do
+           "/repo/.claude/hooks/lib/profile.sh" "/repo/.cursor/hooks/lib/profile.sh" \
+           "/repo/.claude/hooks/git-guard.sh" "/repo/.codex/hooks/git-guard.sh"; do
     run_hook "$HOOK" '{"tool_input":{"file_path":"'"$p"'"}}'
     [ "$RC" -eq 2 ] && ok "deny guard perimeter $p" || bad "$p should deny (rc=$RC out=$OUT)"
   done

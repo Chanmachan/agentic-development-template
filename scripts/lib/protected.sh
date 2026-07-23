@@ -69,6 +69,7 @@ PROTECTED_PATTERNS=(
   "enforce-model.sh"
   "lib/profile.sh"
   "suggest-compact.mjs"
+  "git-guard.sh"
   ".codex/hooks.json"
   ".cursor/hooks.json"
   ".claude/settings.json"
