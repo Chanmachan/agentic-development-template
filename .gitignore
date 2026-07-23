@@ -3,6 +3,12 @@
 Thumbs.db
 .idea/
 .vscode/
+# Allowlist alternative (share extensions.json, ignore other editor state):
+# .vscode/*
+# !.vscode/extensions.json
+
+# ── Claude Code runtime state ─────────────────────────────────────────────────
+.claude/scheduled_tasks.lock
 
 # ── Secrets & environment ─────────────────────────────────────────────────────
 .env
