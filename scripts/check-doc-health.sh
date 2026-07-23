@@ -102,8 +102,10 @@ for file in "${POINTER_FILES[@]}"; do
     [[ "$path" =~ ^(feature|fix|update|refactor|chore|docs)/ ]] && [[ "$path" != *.* ]] && continue
     # Skip .git/ — in worktrees .git is a file, so .git/ does not exist
     [[ "$path" == .git/ || "$path" == */.git/ ]] && continue
-    # Skip directory references with trailing slash (e.g. __tests__/)
-    [[ "$path" == */ ]] && continue
+    # Skip known example directory references with trailing slash (e.g. __tests__/)
+    case "$path" in
+      __tests__/) continue ;;
+    esac
 
     if [[ "$path" == */* ]] && [ ! -e "$path" ]; then
       echo "WARN: Broken pointer in $file: $path"
