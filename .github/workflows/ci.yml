@@ -35,7 +35,7 @@ jobs:
     name: Doc Health
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check AGENTS.md/CLAUDE.md pointers and ADR freshness
         run: bash scripts/check-doc-health.sh
 
@@ -43,7 +43,7 @@ jobs:
     name: Bash Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run tests/*.test.sh
         run: |
           set -euo pipefail
@@ -77,7 +77,7 @@ jobs:
     name: Shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run shellcheck (error-level gate)
         run: |
           set -euo pipefail
@@ -102,7 +102,7 @@ jobs:
   #   name: Security Audit
   #   runs-on: ubuntu-latest
   #   steps:
-  #     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+  #     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
   #     - uses: pnpm/action-setup@... # pin SHA once stack is chosen
   #     - uses: actions/setup-node@... # pin SHA once stack is chosen
   #       with:
