@@ -181,6 +181,12 @@ with open(reg, encoding="utf-8") as f:
             errors.append(f"line {lineno}: invalid JSON ({e})")
             continue
 
+        if not isinstance(obj, dict):
+            errors.append(
+                f"line {lineno}: invalid row (expected JSON object, got {type(obj).__name__})"
+            )
+            continue
+
         tid = obj.get("id")
         if tid:
             if tid in seen_ids:
@@ -191,17 +197,26 @@ with open(reg, encoding="utf-8") as f:
             errors.append(f"line {lineno}: missing id")
 
         status = obj.get("status")
-        if status not in VALID_STATUS:
-            errors.append(f"line {lineno}: invalid status '{status}' (must be one of {sorted(VALID_STATUS)})")
+        if "status" not in obj:
+            errors.append(f"line {lineno}: missing status")
+        elif status is None:
+            errors.append(f"line {lineno}: status is null")
+        elif status not in VALID_STATUS:
+            errors.append(
+                f"line {lineno}: invalid status '{status}' (must be one of {sorted(VALID_STATUS)})"
+            )
 
         if status == "done" and not obj.get("done"):
             errors.append(f"line {lineno}: status=done but done field is null/missing")
 
-        todo = obj.get("todo")
-        if status != "done" and todo:
-            todo_path = todo if os.path.isabs(todo) else os.path.join(src, todo)
-            if not os.path.exists(todo_path):
-                errors.append(f"line {lineno}: todo file not found: {todo}")
+        if status != "done":
+            todo = obj.get("todo")
+            if not todo:
+                errors.append(f"line {lineno}: missing or empty todo")
+            else:
+                todo_path = todo if os.path.isabs(todo) else os.path.join(src, todo)
+                if not os.path.isfile(todo_path):
+                    errors.append(f"line {lineno}: todo is not a file: {todo}")
 
 if errors:
     for e in errors:
