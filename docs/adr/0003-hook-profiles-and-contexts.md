@@ -95,7 +95,7 @@ Node.js 実装で、ツール使用イベントの累積トークン数を概算
 
 ### Addendum (2026-07-06): doc-health staleness しきい値の環境変数化
 
-`check-doc-health.sh` の ADR 鮮度チェックは当初 3/5 日程度の固定しきい値で運用したが、通常の開発ペースでは頻繁に WARN/ERROR が出て運用上厳しすぎることが分かった。`DOC_HEALTH_WARN_DAYS` / `DOC_HEALTH_ERROR_DAYS` 環境変数で調整可能にし、デフォルトを 14/30 日に緩和した。非数値が渡された場合は WARN を出しつつデフォルトにフォールバックする (fail-soft、本 ADR の `HOOK_PROFILE` 未知値の扱いと同じ方針)。
+`check-doc-health.sh` の ADR 鮮度チェックは当初 3/5 日程度の固定しきい値で運用したが、通常の開発ペースでは頻繁に WARN が出て運用上厳しすぎることが分かった。`DOC_HEALTH_WARN_DAYS` / `DOC_HEALTH_ERROR_DAYS` 環境変数で調整可能にし、デフォルトを 14/30 日に緩和した。非数値が渡された場合は WARN を出しつつデフォルトにフォールバックする (fail-soft、本 ADR の `HOOK_PROFILE` 未知値の扱いと同方針)。**2026-07 以降**: 鮮度超過は WARN のみとし commit をブロックしない (ERROR 段階は廃止)。`ERROR_DAYS` 超過時は文言が強めの WARN になるだけ。
 
 ### Out of scope (将来の ADR で扱う)
 

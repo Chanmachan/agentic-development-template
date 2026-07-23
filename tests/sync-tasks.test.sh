@@ -86,10 +86,157 @@ for id in t1 t2 t3 t4; do
   [ "$(grep -c "\"id\": \"$id\"" "$REG")" -eq 1 ] || { echo "FAIL: $id not present exactly once"; fail=1; }
 done
 
+# 7. lint: valid registry passes
+mkdir -p tasks
+cat >"$REG" <<'EOF'
+{"id": "lint-ok", "status": "planned", "todo": "tasks/lint-ok-todo.md"}
+EOF
+touch tasks/lint-ok-todo.md
+lint_out="$(bash "$SCRIPT" lint 2>&1)"; lint_rc=$?
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on valid registry (rc=$lint_rc)"; echo "$lint_out"; fail=1; }
+assert_match "OK: 1 tasks" "$lint_out"
+
+# 8. lint: invalid JSON
+printf '%s\n' 'not json' >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on invalid JSON (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: invalid JSON" "$lint_out"
+
+# 9. lint: duplicate id
+cat >"$REG" <<'EOF'
+{"id": "dup", "status": "planned", "todo": "tasks/dup-todo.md"}
+{"id": "dup", "status": "planned", "todo": "tasks/dup-todo.md"}
+EOF
+touch tasks/dup-todo.md
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on duplicate id (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 2: duplicate id 'dup'" "$lint_out"
+
+# 10. lint: invalid status
+cat >"$REG" <<'EOF'
+{"id": "bad-status", "status": "wip", "todo": "tasks/bad-status-todo.md"}
+EOF
+touch tasks/bad-status-todo.md
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on invalid status (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: invalid status 'wip'" "$lint_out"
+
+# 11. lint: status=done requires done path
+cat >"$REG" <<'EOF'
+{"id": "done-missing", "status": "done", "todo": "tasks/done-missing-todo.md"}
+EOF
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail when status=done without done field (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: status=done but done field is null/missing" "$lint_out"
+
+# 12. lint: todo file must exist (non-done tasks)
+cat >"$REG" <<'EOF'
+{"id": "no-todo", "status": "planned", "todo": "tasks/missing-todo.md"}
+EOF
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail when todo file missing (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: todo is not a file: tasks/missing-todo.md" "$lint_out"
+
+# 13. lint: missing registry file
+rm -f "$REG"
+lint_out="$(bash "$SCRIPT" lint 2>&1)"; lint_rc=$?
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on missing registry (rc=$lint_rc)"; fail=1; }
+assert_match "OK: 0 tasks" "$lint_out"
+
+# 14. lint: empty (0-byte) registry file
+: >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on 0-byte registry (rc=$lint_rc)"; fail=1; }
+assert_match "OK: 0 tasks" "$lint_out"
+
+# 15. lint: whitespace-only registry file
+printf '\n  \n' >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should pass on whitespace-only registry (rc=$lint_rc)"; fail=1; }
+assert_match "OK: 0 tasks" "$lint_out"
+
+# 16. lint: non-dict JSON row (null) — must error, not traceback
+printf '%s\n' 'null' >"$REG"
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on non-dict row (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: invalid row" "$lint_out"
+
+# 17. lint: missing status vs null status vs invalid enum
+cat >"$REG" <<'EOF'
+{"id": "no-status", "todo": "tasks/no-status-todo.md"}
+{"id": "null-status", "status": null, "todo": "tasks/null-status-todo.md"}
+EOF
+touch tasks/no-status-todo.md tasks/null-status-todo.md
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on missing/null status (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: missing status" "$lint_out"
+assert_match "FAIL: line 2: status is null" "$lint_out"
+
+# 18. lint: non-done row requires non-empty todo; directory path is not a file
+mkdir -p tasks
+cat >"$REG" <<'EOF'
+{"id": "no-todo", "status": "planned"}
+{"id": "null-todo", "status": "planned", "todo": null}
+{"id": "dir-todo", "status": "planned", "todo": "tasks"}
+EOF
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on missing/null/dir todo (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 1: missing or empty todo" "$lint_out"
+assert_match "FAIL: line 2: missing or empty todo" "$lint_out"
+assert_match "FAIL: line 3: todo is not a file: tasks" "$lint_out"
+
+# 19. lint: wrong field types must error, not traceback
+cat >"$REG" <<'EOF'
+{"id": ["x"], "status": "planned", "todo": "tasks/wrong-id-todo.md"}
+{"id": "bad-status", "status": [], "todo": "tasks/bad-status-todo.md"}
+{"id": "bad-todo", "status": "planned", "todo": {"path": "tasks/bad-todo-todo.md"}}
+{"id": "done-bool", "status": "done", "done": true, "todo": "tasks/done-bool-todo.md"}
+EOF
+touch tasks/wrong-id-todo.md tasks/bad-status-todo.md tasks/bad-todo-todo.md tasks/done-bool-todo.md
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should fail on wrong field types (rc=$lint_rc)"; echo "$lint_out"; fail=1; }
+assert_match "FAIL: line 1: invalid row (id must be str" "$lint_out"
+assert_match "FAIL: line 2: invalid row (status must be str" "$lint_out"
+assert_match "FAIL: line 3: invalid row (todo must be str" "$lint_out"
+assert_match "FAIL: line 4: invalid row (done must be str" "$lint_out"
+
 if [ "$fail" -ne 0 ]; then
   echo "---"
   echo "Registry contents:"
   cat "$REG" 2>/dev/null || true
   exit 1
 fi
-echo "OK: sync-tasks registry upsert/get — merge, coercion, malformed-line resilience"
+echo "OK: sync-tasks registry upsert/get — merge, coercion, malformed-line resilience, lint"

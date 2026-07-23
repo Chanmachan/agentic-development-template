@@ -9,6 +9,7 @@
 #   bash scripts/sync-tasks.sh list                       # 全行を表示（グローバルビュー）
 #   bash scripts/sync-tasks.sh get <id>                   # 1 タスクの行を表示
 #   bash scripts/sync-tasks.sh upsert <id> key=value ...  # id をキーに 1 行だけ upsert
+#   bash scripts/sync-tasks.sh lint                       # スキーマ/一意性チェック (JSON妥当性・id重複・status enum・done整合・todo存在)
 #
 # upsert 例:
 #   bash scripts/sync-tasks.sh upsert g4c-apply status=in_progress branch=feature/g4c-apply \
@@ -154,8 +155,103 @@ print("upsert " + tid + ": " + json.dumps(upserted, ensure_ascii=False))
 PY
     ;;
 
+  lint)
+    if [ ! -f "$REGISTRY" ]; then
+      echo "OK: 0 tasks"
+      exit 0
+    fi
+    python3 - "$REGISTRY" "$SRC" <<'PY'
+import sys, json, os
+
+reg, src = sys.argv[1], sys.argv[2]
+VALID_STATUS = {"planned", "in_progress", "review", "blocked", "done"}
+
+errors = []
+seen_ids = {}
+count = 0
+
+with open(reg, encoding="utf-8") as f:
+    for lineno, line in enumerate(f, 1):
+        if not line.strip():
+            continue
+        count += 1
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as e:
+            errors.append(f"line {lineno}: invalid JSON ({e})")
+            continue
+
+        if not isinstance(obj, dict):
+            errors.append(
+                f"line {lineno}: invalid row (expected JSON object, got {type(obj).__name__})"
+            )
+            continue
+
+        tid = obj.get("id")
+        if not tid:
+            errors.append(f"line {lineno}: missing id")
+        elif not isinstance(tid, str):
+            errors.append(
+                f"line {lineno}: invalid row (id must be str, got {type(tid).__name__})"
+            )
+        elif tid in seen_ids:
+            errors.append(f"line {lineno}: duplicate id '{tid}' (first seen at line {seen_ids[tid]})")
+        else:
+            seen_ids[tid] = lineno
+
+        status = obj.get("status")
+        status_ok = False
+        if "status" not in obj:
+            errors.append(f"line {lineno}: missing status")
+        elif status is None:
+            errors.append(f"line {lineno}: status is null")
+        elif not isinstance(status, str):
+            errors.append(
+                f"line {lineno}: invalid row (status must be str, got {type(status).__name__})"
+            )
+        elif status not in VALID_STATUS:
+            errors.append(
+                f"line {lineno}: invalid status '{status}' (must be one of {sorted(VALID_STATUS)})"
+            )
+        else:
+            status_ok = True
+
+        if status_ok and status == "done":
+            done = obj.get("done")
+            if not isinstance(done, str) or not done:
+                if isinstance(done, str) and not done:
+                    errors.append(f"line {lineno}: status=done but done field is null/missing")
+                elif done is None or "done" not in obj:
+                    errors.append(f"line {lineno}: status=done but done field is null/missing")
+                else:
+                    errors.append(
+                        f"line {lineno}: invalid row (done must be str, got {type(done).__name__})"
+                    )
+
+        if status_ok and status != "done":
+            todo = obj.get("todo")
+            if not todo:
+                errors.append(f"line {lineno}: missing or empty todo")
+            elif not isinstance(todo, str):
+                errors.append(
+                    f"line {lineno}: invalid row (todo must be str, got {type(todo).__name__})"
+                )
+            else:
+                todo_path = todo if os.path.isabs(todo) else os.path.join(src, todo)
+                if not os.path.isfile(todo_path):
+                    errors.append(f"line {lineno}: todo is not a file: {todo}")
+
+if errors:
+    for e in errors:
+        print("FAIL: " + e)
+    sys.exit(1)
+
+print(f"OK: {count} tasks")
+PY
+    ;;
+
   *)
-    echo "usage: sync-tasks.sh {list | get <id> | upsert <id> key=value ...}" >&2
+    echo "usage: sync-tasks.sh {list | get <id> | upsert <id> key=value ... | lint}" >&2
     exit 2
     ;;
 esac
