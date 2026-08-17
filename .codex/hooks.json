@@ -18,6 +18,15 @@
             "command": "node .codex/hooks/suggest-compact.mjs"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/hooks/git-guard.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
