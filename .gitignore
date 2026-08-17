@@ -7,8 +7,10 @@ Thumbs.db
 # .vscode/*
 # !.vscode/extensions.json
 
-# ── Claude Code runtime state ─────────────────────────────────────────────────
+# ── Claude Code runtime state (per-session, not config) ───────────────────────
 .claude/scheduled_tasks.lock
+.claude/worktrees/
+.claude/settings.local.json
 
 # ── Secrets & environment ─────────────────────────────────────────────────────
 .env

@@ -7,7 +7,7 @@ See: @AGENTS.md
 1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/{id}-todo.md` に残し、`tasks/tasks.jsonl` に状態行を追記する (`planned`/`in_progress`)。
 2. **Implement** — `tdd` skill に従い、失敗するテスト → 最小実装 → リファクタの順で進める。
 3. **Verify** — lint / typecheck / test を通す (`stop-check.sh` が強制)。
-4. **Commit** — `.claude/rules/git.md` に従う。PR レビュー対応は `/fix-review` コマンドを使う。指摘ゼロまで自動で回したいときは `/review-cycle` を使う。
+4. **Commit** — `.claude/rules/git.md` に従う。`main` への直接コミットと `--no-verify` は `git-guard.sh` がブロックする。PR レビュー対応は `/fix-review`。指摘ゼロまで自動で回すなら `/review-cycle`、暗黙の前提を洗うなら `/tacit-review`。
 5. **Archive** — MERGED したら `tasks/tasks.jsonl` の当該行を `status:"done"` + `done` パスに更新し、`tasks/{id}-todo.md` の内容を `tasks/done/{id}.md` に移す。`id` は内容が一目で分かる slug。
 
 ## Task tracking
@@ -28,10 +28,11 @@ See: @AGENTS.md
 
 ## Skills and subagents
 
-- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `context-{dev,review,research,debug}` (オンデマンドロード)
+- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `repo-audit`, `context-{dev,review,research,debug}` (オンデマンドロード)
 - `.agents/skills/` — `fix-review`, `handoff`, `land-task`, `multi-review`, `review-cycle`, `verify-guide` (Codex workflow / オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator`, `enumerator` (委譲時にロード)
-- `.claude/rules/` 索引: `git` / `tasks` / `pitfalls` / `model-roles`。path frontmatter の無い rule (`git` / `pitfalls` / `model-roles`) はセッション開始時に一読。`tasks` rule は ADR 0009 の path-scoping に従い、tasks 配下や `scripts/sync-tasks.sh` を触るときだけロードされる (ただし `tasks/tasks.jsonl` のセッション開始スキャンは上記 Task tracking の明示指示であり、rule ロードの例外)。
+- `.claude/commands/` — `/fix-review`, `/review-cycle`, `/tacit-review`, `/multi-review`, `/handoff`, `/land-task`, `/verify-guide`, `/weekly-progress`
+- `.claude/rules/` 索引: `git` / `tasks` / `pitfalls` / `model-roles` / `comments`。path frontmatter の無い rule (`git` / `pitfalls` / `model-roles` / `comments`) はセッション開始時に一読。`tasks` rule は ADR 0009 の path-scoping に従い、tasks 配下や `scripts/sync-tasks.sh` を触るときだけロードされる (ただし `tasks/tasks.jsonl` のセッション開始スキャンは上記 Task tracking の明示指示であり、rule ロードの例外)。
 
 ## Hook profiles and contexts
 
