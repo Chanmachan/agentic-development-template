@@ -1,19 +1,19 @@
 ---
 name: spec-interview
-description: Use when starting a new project, feature, or component whose specification doesn't yet exist. Drives an interview-style flow using AskUserQuestion to surface purpose, scope, success criteria, constraints, edge cases, and trade-offs, then writes the result to docs/spec.md (or docs/specs/<feature>.md). Trigger when the user asks to "write a spec", "define requirements", "start a new project", or when docs/spec.md is empty and implementation is being discussed.
+description: Use when starting a new project, feature, or component whose specification doesn't yet exist. Drives an interview-style flow using AskUserQuestion to surface purpose, scope, success criteria, constraints, edge cases, and trade-offs, then writes the result to docs/spec.md (or docs/specs/<feature>.md). Trigger when the user asks to "write a spec", "define requirements", "start a new project", or when docs/spec.md's index has no entry for the feature and docs/client/ / docs/pages/*/spec/ have no matching spec either.
 ---
 
 # Spec Interview Skill
 
 ## When to use
 
-`docs/spec.md` または対象機能の仕様が**まだ存在しない** ときに使う。具体的には:
+対象機能の仕様が**どこにもまだ存在しない** ときに使う。仕様の実体は3層 (画面仕様 `docs/pages/<role>/spec/`、クライアント WF 仕様 `docs/client/` の WF 仕様 (10_WF_概要〜16_WF4_稼働管理)、設計判断 `docs/adr/`) にあり、`docs/spec.md` はその索引でしかない。具体的には:
 
-- 新しいプロジェクトを開始するとき (`docs/spec.md` が空または雛形のみ)
-- 既存プロジェクトに大きな機能を追加するとき (機能単位の spec が必要)
+- `docs/spec.md` の索引に該当機能のエントリが無く、かつ `docs/client/` にも `docs/pages/*/spec/` にも該当仕様が無いとき
+- 既存プロジェクトに大きな機能を追加するとき (機能単位の spec が必要で、上記のどこにも該当仕様が無い)
 - ユーザの最初の要求が曖昧で、複数解釈できるとき
 
-skip してよい: 既に spec がある修正、明確な 1 行バグ修正、リネーム、承認済み `tasks/<id>-todo.md` がある作業。
+skip してよい: 上記3層のどこかに既に該当仕様がある修正 (新規インタビューを始めない)、明確な 1 行バグ修正、リネーム、承認済み `tasks/<id>-todo.md` がある作業。
 
 ## Principle
 

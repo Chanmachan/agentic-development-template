@@ -12,7 +12,7 @@ description: Use when reviewing a full PR or large diff from multiple independen
 単一 reviewer に全観点を任せると見落としやバイアスが出やすい。**観点ごとに独立した文脈** で評価することで、(a) 各 reviewer が境界外に踏み込まず深く見れる、(b) 並列実行で時間短縮、(c) 観点別の Blocking 件数が一覧できマージ判断しやすい。
 
 レビュー手段の棲み分け:
-- **この workflow** = ローカル / 即時 / カスタマイズ可能 (反復レビュー、CI 連携、PR 提出前の最終確認向け)
+- **このコマンド** = ローカル / 即時 / カスタマイズ可能 (反復レビュー、CI 連携、PR 提出前の最終確認向け)
 - **`code-reviewer` subagent** = 1 つの別文脈で大きめの diff を汎用レビューしたい場合
 
 ## 引数
@@ -33,7 +33,7 @@ $ARGUMENTS は任意:
 2. **適用する reviewer の決定**
    - デフォルト: `review-correctness`, `review-security`, `review-tests`, `review-performance`, `review-readability`, `review-docs-adr` の 6 つ
    - `--skip` / `--only` を反映
-   - **docs-adr reviewer の adaptive skip**: `docs/adr/` も `docs/spec.md` も `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` / `.codex/rules/` も無いリポジトリでは `review-docs-adr` を自動 skip (reviewer 側でも adaptive 動作するが、起動コストを節約)
+   - **docs-adr reviewer の adaptive skip**: `docs/adr/` も `docs/spec.md` も `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` も無いリポジトリでは `review-docs-adr` を自動 skip (reviewer 側でも adaptive 動作するが、起動コストを節約)
 3. **並列起動**
    - Agent tool を **1 メッセージ内で複数 tool_use** として並列発行 (subagent_type=`review-<angle>`)
    - 各 reviewer の prompt には次を渡す:
@@ -44,8 +44,6 @@ $ARGUMENTS は任意:
 4. **集約**
    - 各 reviewer の出力から Blocking / Suggestion / Nit / Strengths を抽出
    - `path:line` 単位で **緩く dedupe** (同じ箇所が複数観点から指摘されたら、最も厳しい観点を主とし他観点を括弧で添える)
-   - **反証 pass**: 各 Blocking は、統合レポートに載せる前に該当ファイルを実際に開いて指摘が成立するか再確認する。成立しない・誇張と判明したものは Suggestion に降格するか棄却し、その旨を記録する
-     - PR 番号 / URL モードでは diff だけではローカル checkout と PR head が一致しないことがある。**反証 pass の前に PR head を取得**し、そのリビジョンに対して検証する (例: `gh pr checkout <番号>` で head を checkout する、または `gh api repos/{owner}/{repo}/pulls/{番号}` で head ref を取得して `git fetch origin <head-ref>` 後にその SHA を checkout)。ローカル空引数モード (= `HEAD` vs `main`) のときは現在の working tree をそのまま使う
    - 全観点の Blocking のみを末尾に集約リスト化
 5. **統合レポートを出力** (下記フォーマット)
 

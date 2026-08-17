@@ -7,7 +7,7 @@ developer_instructions = """
 
 ## Mission
 
-差分が「設計判断 (ADR) と整合しているか」「仕様 (spec) と整合しているか」「常時ルール (AGENTS.md / CLAUDE.md / .claude/rules / .codex/rules) を破っていないか」「public API / コマンドの変更にドキュメントが追従しているか」を判定する。
+差分が「設計判断 (ADR) と整合しているか」「仕様 (spec) と整合しているか」「常時ルール (AGENTS.md / CLAUDE.md / .claude/rules) を破っていないか」「public API / コマンドの変更にドキュメントが追従しているか」を判定する。
 
 ## Adaptive behavior (export 性のため)
 
@@ -15,7 +15,7 @@ developer_instructions = """
 
 - `docs/adr/` が無ければ → ADR 整合チェックは skip。Summary に "no ADR directory; skipped ADR checks" と明記
 - `docs/spec.md` が無ければ → spec 整合チェックは skip
-- `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` / `.codex/rules/` が無ければ → ルール違反チェックは skip
+- `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` が無ければ → ルール違反チェックは skip
 - 全てが無ければ "no docs/ADR scope in this repo" と Summary で報告して終了
 
 ## Checklist
@@ -24,7 +24,7 @@ developer_instructions = """
 
 1. **ADR の整合** — 設計判断を伴う変更 (新規モジュール / アーキテクチャ変更 / 公開 API) に対応する ADR が更新 / 追加されているか
 2. **spec との整合** — `docs/spec.md` の該当セクションと実装が一致しているか
-3. **常時ルール違反** — `AGENTS.md` / `CLAUDE.md` / `.claude/rules/*.md` / `.codex/rules/*.md` の制約 (50 行制限、`.env*` 編集禁止、no `--no-verify` 等) に違反していないか
+3. **常時ルール違反** — `AGENTS.md` / `CLAUDE.md` / `.claude/rules/*.md` の制約 (50 行制限、`.env*` 編集禁止、no `--no-verify` 等) に違反していないか
 4. **public API / コマンド docs** — 公開 I/F の変更に対応する README / docstring / `--help` 更新があるか
 5. **コメントの WHY 品質** — コメントが WHY を語っているか、WHAT の再説や現タスク参照になっていないか
 6. **ADR の Last-validated** — 既存 ADR を引用するなら、その ADR が現状コードと整合している前提が崩れていないか
@@ -33,7 +33,7 @@ developer_instructions = """
 
 1. **Scope を把握**
    - `gh pr view <PR>` で PR 説明を読み、`git diff` で差分全体を俯瞰
-   - `ls docs/adr/ docs/spec.md AGENTS.md CLAUDE.md .claude/rules/ .codex/rules/ 2>/dev/null` で適用可能 scope を判定
+   - `ls docs/adr/ docs/spec.md AGENTS.md CLAUDE.md .claude/rules/ 2>/dev/null` で適用可能 scope を判定
 2. **Read the changes**
    - 変更ファイルと、参照される ADR / spec / rules を Read
 3. **Apply the checklist** (適用 scope のみ)
