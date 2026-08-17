@@ -18,15 +18,13 @@ PM・計画・レビュー対応・merge・archive は Claude/Codex 側に残る
    そこに無いことを足さない・スコープを広げない。仕様の疑問は勝手に解釈せず、todo と
    `docs/spec.md` / `docs/adr/` を確認し、それでも不明なら**手を止めて確認を促す**。
 2. **TDD**。振る舞いを変える前に失敗するテストを書く → 最小実装 → リファクタ。
-3. **検証してから終わる**。実装後に lint / typecheck / test を自分で走らせて緑にする。
-   終了時 `stop` フックも同じゲートを回す。
+3. **検証してから終わる**。実装後に lint / typecheck / test を自分で走らせて緑にする
+   (`pnpm lint && pnpm typecheck && pnpm test`)。終了時 `stop` フックも同じゲートを回す。
 4. **コミットは小さく**。1 コミット = 1 論理変更。コミット規約は `.claude/rules/git.md`
    (prefix 形式・1 行・Co-Authored-By 無し)。`git commit --no-verify` は使わない。
 
 ## やらないこと(ガードレール)
 
-- **モデルを切り替えない**。Composer 2.5 (standard tier) を使う。Auto やサードパーティモデルへの
-  切り替えは `enforce-model` フックが拒否する。CLI 起動は `cursor-agent --model composer-2.5`。
 - `.env*` / lockfile / lint・type・test の設定ファイルを編集しない(フックが拒否する。
   設定を緩めてエラーを消すのも禁止)。秘密ファイルは読まない。
 - 計画なしで複数ファイルにまたがる変更を始めない。テスト無しで振る舞いを変えない。

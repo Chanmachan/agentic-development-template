@@ -7,16 +7,15 @@ description: Use before starting non-trivial implementation work — anything to
 
 ## When to use
 
-plan 必須 (いずれか該当したら計画フェーズを挟む):
+非自明な変更には必ず計画フェーズを挟む。具体的には:
 
-- (a) テスト以外の変更ファイルが 2 個以上
-- (b) 新規ファイル追加
-- (c) DB スキーマ・マイグレーション・セキュリティ境界に触れる変更
-- (d) 公開 API・共有型のシグネチャ変更
-- (e) ユーザ要求が複数解釈できる
-- (f) 新しい抽象・共有構造の導入 (既存 1 ファイル内に helper / 共通モジュール / 基底型などを足す場合も含む)
+- 複数ファイル / 複数モジュールにまたがる変更
+- 新しい抽象 (関数、クラス、ファイル) を導入する
+- 仕様が曖昧、または要求が複数解釈できる
+- パフォーマンスやセキュリティに影響する変更
+- ADR が必要そうな設計判断を含む
 
-全て非該当なら skip 可 (1 ファイル内の typo・明確な 1 行修正・ドキュメント修正)。**迷ったら plan**。
+スキップしてよい: 1 ファイル内の typo 修正、明確な 1 行バグ修正、ドキュメント修正。
 
 ## How to plan
 
@@ -27,9 +26,9 @@ plan 必須 (いずれか該当したら計画フェーズを挟む):
 - 既存コードの該当箇所 (調査が広範なら `investigator` / `planner` subagent に委譲)
 - ユーザの要求文 (曖昧な部分は質問するか、合理的判断で進めて transparent に伝える)
 
-### 2. tasks/<id>-todo.md に書く
+### 2. todo ファイルに書く
 
-成果物は **`tasks/<id>-todo.md`** (リポジトリ規約: タスクごとに 1 ファイル、`id` は内容が分かる kebab-case slug。特権的な単一 todo.md は廃止)。承認後に `tasks/tasks.jsonl` へ状態行を追記する (スキーマ・ライフサイクルは `.codex/rules/tasks.md`)。以下の構造で書く:
+成果物は **`tasks/<id>-todo.md`** (リポジトリ規約: タスクごとに 1 ファイル、`id` は内容が分かる kebab-case slug。特権的な単一 `tasks/todo.md` は廃止)。承認後に `tasks/tasks.jsonl` へ状態行を追記する (スキーマ・ライフサイクルは `.claude/rules/tasks.md`)。以下の構造で書く:
 
 ```markdown
 # <タスク名>
@@ -62,7 +61,7 @@ plan 必須 (いずれか該当したら計画フェーズを挟む):
 
 ### 4. 実装前に feature ブランチを切る
 
-承認後・最初の Edit / Write の前に、`.claude/rules/git.md` / `.codex/rules/git.md` の命名規則に従って feature ブランチを作成する (`feature/...`, `fix/...`, `chore/...` 等)。`main` 上で直接コミットしない。後追いでブランチを切ると履歴が分岐しづらく、PR 単位の差分も汚れる。
+承認後・最初の Edit / Write の前に、`.claude/rules/git.md` の命名規則に従って feature ブランチを作成する (`feature/...`, `fix/...`, `chore/...` 等)。`main` 上で直接コミットしない。後追いでブランチを切ると履歴が分岐しづらく、PR 単位の差分も汚れる。
 
 ### 5. 実装中の計画更新
 

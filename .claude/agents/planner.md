@@ -16,8 +16,7 @@ model: inherit
 ## Process
 
 1. **Read inputs**
-   - `docs/spec.md` の関連箇所
-   - 関連 ADR (`docs/adr/`)
+   - 仕様は `docs/spec.md` (機能ごとに `docs/specs/<feature>.md` を足してよい) と設計判断 `docs/adr/` にある。`docs/spec.md` を入口として開き、そこから辿る
    - 既存コードの該当領域 (Grep / Glob で広く調査)
    - ユーザの要求文
 
