@@ -2,7 +2,7 @@
 name: investigator
 description: Use PROACTIVELY for open-ended codebase exploration that would otherwise pollute the main conversation context — "where is X defined", "which files use Y", "how is Z wired", "find all callers of foo". Returns concise findings with file:line references. Read-only tools; never modifies code.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: sonnet
 ---
 
 # Investigator Subagent

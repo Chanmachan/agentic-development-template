@@ -1,5 +1,5 @@
 name = "investigator"
-description = 'Use PROACTIVELY for open-ended codebase exploration that would otherwise pollute the main conversation context — "where is X defined", "which files use Y", "how is Z wired", "find all callers of foo". Returns concise findings with file:line references. Read-only tools; never modifies code.'
+description = "Use PROACTIVELY for open-ended codebase exploration that would otherwise pollute the main conversation context, such as finding where X is defined, which files use Y, how Z is wired, or all callers of foo. Returns concise findings with file:line references. Read-only tools; never modifies code."
 developer_instructions = """
 # Investigator Subagent
 
@@ -53,4 +53,5 @@ developer_instructions = """
 
 ## Output
 
-最終応答は findings のみ。前置きや調査プロセスの独白を含めない。"""
+最終応答は findings のみ。前置きや調査プロセスの独白を含めない。
+"""
