@@ -1,6 +1,6 @@
 ---
 name: plan-mode
-description: Use before starting non-trivial implementation work — anything touching multiple files, introducing new abstractions, or with unclear requirements. Guides how to produce a written plan in tasks/<id>-todo.md (per-task file) and get user approval before coding. Trigger when the user asks to "plan", "design", "figure out how to", or when a request is ambiguous enough that jumping to code would be premature.
+description: Use before starting non-trivial implementation work — anything touching multiple files, introducing new abstractions, or with unclear requirements. Guides how to produce a written plan in tasks/<id>-todo.md and get user approval before coding. Trigger when the user asks to "plan", "design", "figure out how to", or when a request is ambiguous enough that jumping to code would be premature.
 ---
 
 # Plan Mode Skill
@@ -11,10 +11,9 @@ plan 必須 (いずれか該当したら計画フェーズを挟む):
 
 - (a) テスト以外の変更ファイルが 2 個以上
 - (b) 新規ファイル追加
-- (c) DB スキーマ・マイグレーション・セキュリティ境界に触れる変更
-- (d) 公開 API・共有型のシグネチャ変更
+- (c) DB migration・認証/認可・push 通知基盤に触れる
+- (d) 公開 API・アプリ間契約 (server エンドポイント / スキーマ) のシグネチャ変更
 - (e) ユーザ要求が複数解釈できる
-- (f) 新しい抽象・共有構造の導入 (既存 1 ファイル内に helper / 共通モジュール / 基底型などを足す場合も含む)
 
 全て非該当なら skip 可 (1 ファイル内の typo・明確な 1 行修正・ドキュメント修正)。**迷ったら plan**。
 

@@ -16,8 +16,7 @@ model: inherit
 ## Process
 
 1. **Read inputs**
-   - `docs/spec.md` の関連箇所
-   - 関連 ADR (`docs/adr/`)
+   - 仕様の実体は3層: (1) 画面仕様 `docs/pages/<role>/spec/` (最優先・画面IDごと)、(2) クライアント WF 仕様 `docs/client/` の WF 仕様 (10_WF_概要〜16_WF4_稼働管理)、(3) 設計判断 `docs/adr/`。`docs/spec.md` は索引なので入口として開き、そこから辿る
    - 既存コードの該当領域 (Grep / Glob で広く調査)
    - ユーザの要求文
 

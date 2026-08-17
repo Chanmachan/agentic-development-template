@@ -109,17 +109,21 @@ codex    # Codex
 │
 ├── .claude/
 │   ├── settings.json      # Claude Code Hook & permission settings
-│   ├── rules/             # git.md (always-loaded), tasks.md (paths-scoped to tasks/**, see ADR 0009)
+│   ├── rules/             # git.md / comments.md / pitfalls.md / model-roles.md (always-loaded),
+│   │                      # tasks.md (paths-scoped to tasks/**, see ADR 0009)
 │   ├── agents/            # Subagents (planner, code-reviewer, investigator)
 │   │   └── reviewers/     # Per-perspective review subagents (correctness, security, tests, performance, readability, docs-adr)
-│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review, context-dev/review/research/debug)
-│   ├── commands/          # Slash commands (/fix-review, /handoff, /multi-review)
+│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review, repo-audit,
+│   │                      # context-dev/review/research/debug)
+│   ├── commands/          # Slash commands (/fix-review, /review-cycle, /tacit-review, /multi-review,
+│   │                      # /handoff, /land-task, /verify-guide, /weekly-progress)
 │   └── hooks/
 │       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks; copy kept in sync with .codex, see ADR 0008)
 │       ├── protect-config.sh  # Block edits to configs/secrets (PreToolUse) — classification via scripts/lib/protected.sh
 │       ├── post-lint.sh       # Auto-lint after every file edit (PostToolUse)
 │       │                      # ★ Edit this to match your language
 │       ├── stop-check.sh      # Block completion until tests pass (Stop)
+│       ├── git-guard.sh      # Block main commits / --no-verify / force-push at main (PreToolUse:Bash)
 │       ├── worktree-setup.sh  # Auto-sync tasks/ symlink on SessionStart/SubagentStart (all profiles, see ADR 0009)
 │       └── suggest-compact.mjs # Suggest /clear when context fills (standard and strict)
 │
@@ -137,7 +141,8 @@ codex    # Codex
 │   ├── hooks.json         # Cursor hook settings
 │   ├── hooks/             # Cursor hook scripts (protect-config/read/shell, post-lint, stop-check, enforce-model)
 │   │                      # lib/protected.sh is a thin wrapper over scripts/lib/protected.sh (see ADR 0008)
-│   └── rules/             # cursor-implementer.mdc (alwaysApply implementer stance)
+│   └── rules/             # cursor-implementer.mdc (alwaysApply implementer stance),
+│                          # branch.mdc / commit.mdc / pull-request.mdc (mirror .claude/rules/git.md)
 │
 ├── contexts/              # Session-purpose system prompts (dev/review/research/debug)
 │
@@ -176,7 +181,8 @@ These run automatically when the configured agent writes code:
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
 | Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins via the shared `scripts/lib/protected.sh` classification (ADR 0008). `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
-| Before any tool use (PreToolUse, standard and strict) | `suggest-compact` nudges `/clear` when context approaches the limit |
+| Before any tool use (PreToolUse, standard and strict) | `suggest-compact` nudges `/clear` when context approaches the limit. It reads the **real token usage** recorded in the transcript (`message.usage`, sidechains excluded), not the transcript's byte size |
+| Before a Bash tool call (PreToolUse) | `git-guard` blocks commits on `main`, `--no-verify`, and force-pushes at `main`. It resolves the `cd` chain to judge the branch the command will actually run on, so a sibling worktree on a feature branch is allowed. Escape hatch: `ALLOW_MAIN_COMMIT=1` |
 | On session/subagent start (SessionStart, SubagentStart — all profiles) | `worktree-setup.sh` runs `sync-local-docs.sh` so a fresh worktree's `tasks/` symlink is set up without a manual step — see ADR 0009 |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
 | Before commit (Lefthook `commit-msg`) | Rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`; `Merge`/`Revert` exempted) |

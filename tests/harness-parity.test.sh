@@ -23,8 +23,13 @@ PAIRS=(
   ".claude/hooks/stop-check.sh:.codex/hooks/stop-check.sh"
   ".claude/hooks/protect-config.sh:.codex/hooks/protect-config.sh"
   ".claude/hooks/lib/profile.sh:.codex/hooks/lib/profile.sh"
-  ".claude/hooks/suggest-compact.mjs:.codex/hooks/suggest-compact.mjs"
+  ".claude/hooks/git-guard.sh:.codex/hooks/git-guard.sh"
 )
+
+# suggest-compact.mjs is deliberately NOT paired: the two harnesses gate it at
+# different profiles (.claude = standard and strict, .codex = strict only), so
+# byte-equality would be the wrong invariant. Any other divergence between the
+# two copies is unguarded — check it by hand when editing either one.
 
 for pair in "${PAIRS[@]}"; do
   a="${pair%%:*}"

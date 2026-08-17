@@ -1,0 +1,37 @@
+---
+description: コミットメッセージのルール
+globs:
+alwaysApply: true
+---
+
+# コミットメッセージ
+
+形式: `prefix: 簡潔な説明`（1行のみ、補足説明や複数行は不要）
+
+- 英語で
+- 本文・フッターは付けない（タイトル行のみ）
+
+| prefix | 用途 |
+|--------|------|
+| feat | 新機能の追加 |
+| fix | バグ修正 |
+| update | 既存機能の改善・変更 |
+| refactor | 機能変更を伴わないコード改善 |
+| style | コードフォーマット等（動作に影響しない） |
+| docs | ドキュメントのみの変更 |
+| test | テストの追加・修正 |
+| chore | ビルド設定・依存追加等の雑務 |
+| del | ファイル・機能の削除 |
+| perf | パフォーマンス改善 |
+| ci | CI/CD 設定の変更 |
+
+例:
+- `feat: add custom notification timing setting`
+- `fix: correct notification schedule time offset`
+- `refactor: replace NotificationTiming enum with class`
+- `chore: add flutter_riverpod package`
+
+## Co-author / ツール表記
+
+- コミットメッセージに `Co-Authored-By` を付けない。
+- コミットメッセージや PR 本文にツールの生成表記（例: "🤖 Generated with Claude Code" / "Generated with Cursor"）を付けない。

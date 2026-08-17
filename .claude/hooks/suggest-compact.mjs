@@ -1,30 +1,58 @@
 #!/usr/bin/env node
 // suggest-compact: PreToolUse hook that nudges the user to /clear or split into
-// a subagent when the session transcript is approaching the context budget.
-//
-// Profile: standard and strict (per ADR 0003 §1). minimal exits immediately.
-//
-// Token estimate is intentionally rough. We divide transcript bytes by 2:
-//   - English: ~1 token / 4 bytes → this overestimates ~2x (earlier warning).
-//   - Japanese: ~1 token / 3 bytes UTF-8 → still slightly overestimates.
-// Early-warning bias is intentional for an advisory hook. JSONL overhead in the
-// transcript adds further inflation. Override via $SUGGEST_COMPACT_THRESHOLD.
+// a subagent when the session is approaching the context budget.
+// Profile: standard and strict (ADR 0003 §1). minimal exits immediately.
 
-import { statSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
 
-const profile = process.env.HOOK_PROFILE || "standard";
-if (profile === "minimal") process.exit(0);
-if (profile !== "standard" && profile !== "strict") {
-  // Fail-soft like lib/profile.sh (ADR 0003 §1): warn, then run as standard.
-  process.stderr.write(
-    `WARN: unknown HOOK_PROFILE='${profile}' (expected minimal|standard|strict); treating as standard\n`,
-  );
+const profile = process.env.HOOK_PROFILE ?? 'standard';
+if (profile === 'minimal') process.exit(0);
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-const threshold = Number(process.env.SUGGEST_COMPACT_THRESHOLD ?? 140000);
+const contextWindow = positiveNumber(process.env.SUGGEST_COMPACT_WINDOW, 1_000_000);
+const threshold = positiveNumber(
+  process.env.SUGGEST_COMPACT_THRESHOLD,
+  Math.floor(contextWindow * 0.7),
+);
+const FIRST_TAIL_BYTES = 256 * 1024;
+const MAX_TAIL_BYTES = 16 * 1024 * 1024;
 
-let raw = "";
-process.stdin.setEncoding("utf8");
+function readTail(fd, size, span) {
+  const start = Math.max(0, size - span);
+  const buf = Buffer.alloc(size - start);
+  readSync(fd, buf, 0, buf.length, start);
+  const text = buf.toString('utf8');
+  return start > 0 ? text.slice(text.indexOf('\n') + 1) : text;
+}
+
+function latestUsage(text) {
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (!lines[i]) continue;
+    let record;
+    try {
+      record = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    if (record?.isSidechain) continue;
+    const usage = record?.message?.usage;
+    if (!usage) continue;
+    return (
+      (usage.input_tokens ?? 0) +
+      (usage.cache_read_input_tokens ?? 0) +
+      (usage.cache_creation_input_tokens ?? 0)
+    );
+  }
+  return null;
+}
+
+let raw = '';
+process.stdin.setEncoding('utf8');
 for await (const chunk of process.stdin) raw += chunk;
 
 let input;
@@ -37,25 +65,32 @@ try {
 const transcript = input?.transcript_path;
 if (!transcript) process.exit(0);
 
-let bytes;
+let used = null;
 try {
-  bytes = statSync(transcript).size;
+  const fd = openSync(transcript, 'r');
+  try {
+    const { size } = fstatSync(fd);
+    for (let span = FIRST_TAIL_BYTES; used === null; span *= 4) {
+      used = latestUsage(readTail(fd, size, span));
+      if (span >= size || span >= MAX_TAIL_BYTES) break;
+    }
+  } finally {
+    closeSync(fd);
+  }
 } catch {
   process.exit(0);
 }
 
-const estTokens = Math.floor(bytes / 2);
-if (estTokens < threshold) process.exit(0);
+if (used === null || used < threshold) process.exit(0);
 
-const msg =
-  `[suggest-compact] Estimated context usage ~${estTokens.toLocaleString()} tokens ` +
-  `(threshold ${threshold.toLocaleString()}). Consider /clear, or delegate the ` +
-  `next exploration to an investigator/planner subagent to keep main context lean.`;
+const fmt = new Intl.NumberFormat('en-US').format;
+const pct = Math.round((used / contextWindow) * 100);
+const msg = `[suggest-compact] Context usage ~${fmt(used)} tokens (${pct}% of a ${fmt(contextWindow)} window, threshold ${fmt(threshold)}). Consider /clear, or delegate the next exploration to an investigator/planner subagent to keep main context lean.`;
 
 process.stdout.write(
   JSON.stringify({
     hookSpecificOutput: {
-      hookEventName: "PreToolUse",
+      hookEventName: 'PreToolUse',
       additionalContext: msg,
     },
   }),

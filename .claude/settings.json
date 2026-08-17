@@ -48,6 +48,15 @@
             "command": "node .claude/hooks/suggest-compact.mjs"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/git-guard.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [

@@ -34,7 +34,7 @@ $ARGUMENTS は任意。次セッションで最初にやることを一言で渡
    1. tasks/tasks.jsonl — in-flight (status≠done) の一覧。現在状態の索引
    2. tasks/<id>-todo.md — <該当セクション名>。計画と確定判断の真実の源
    3. <関連 tasks/done/*.md や ADR、対象コードファイル>
-   4. AGENTS.md / CLAUDE.md / .claude/rules/git.md / .codex/rules/git.md — workflow ルール
+   4. AGENTS.md / CLAUDE.md / .claude/rules/git.md — workflow ルール
 
    ## 今セッションで確定したこと (会話文脈にしかない要点)
    - <設計判断や口頭合意のうち、ファイルに書ききれていない or 背景が重要なもの>
