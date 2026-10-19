@@ -40,6 +40,8 @@ brew install gh && gh auth login
 
 ## Getting Started
 
+Adding this harness to an **existing** repository instead (shared with the team, or as a personal overlay that leaves no trace in tracked files)? See [`docs/adopt-existing-project.md`](docs/adopt-existing-project.md) — it also ends with a prompt you can hand to an agent.
+
 ### 1. Copy this repository
 
 ```bash
