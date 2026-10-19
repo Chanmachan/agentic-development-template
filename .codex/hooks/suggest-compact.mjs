@@ -3,7 +3,9 @@
 // a subagent when the session is approaching the context budget.
 // Profile: strict only (ADR 0003 §1). minimal/standard exit immediately.
 
-import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readSync, unlinkSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const profile = process.env.HOOK_PROFILE ?? 'standard';
 if (profile !== 'strict') process.exit(0);
@@ -51,6 +53,40 @@ function latestUsage(text) {
   return null;
 }
 
+function bandForUsed(used) {
+  if (used < threshold) return 0;
+  const mid = threshold + (contextWindow - threshold) / 2;
+  return used >= mid ? 2 : 1;
+}
+
+function sanitizeSessionId(sessionId) {
+  return String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function stampPath(sessionId, bandNum) {
+  const dir = process.env.SUGGEST_COMPACT_STATE_DIR ?? os.tmpdir();
+  return path.join(dir, `suggest-compact-${sanitizeSessionId(sessionId)}-b${bandNum}`);
+}
+
+function tryClaimBandStamp(sessionId, band) {
+  try {
+    const fd = openSync(stampPath(sessionId, band), 'wx');
+    closeSync(fd);
+    return true;
+  } catch (err) {
+    if (err?.code === 'EEXIST') return false;
+    return true;
+  }
+}
+
+function clearBandStamps(sessionId) {
+  for (const b of [1, 2]) {
+    try {
+      unlinkSync(stampPath(sessionId, b));
+    } catch {}
+  }
+}
+
 let raw = '';
 process.stdin.setEncoding('utf8');
 for await (const chunk of process.stdin) raw += chunk;
@@ -81,11 +117,22 @@ try {
   process.exit(0);
 }
 
-if (used === null || used < threshold) process.exit(0);
+if (used === null) process.exit(0);
 
-const fmt = new Intl.NumberFormat('en-US').format;
-const pct = Math.round((used / contextWindow) * 100);
-const msg = `[suggest-compact] Context usage ~${fmt(used)} tokens (${pct}% of a ${fmt(contextWindow)} window, threshold ${fmt(threshold)}). Consider /clear, or delegate the next exploration to an investigator/planner subagent to keep main context lean.`;
+const band = bandForUsed(used);
+const sessionId = input?.session_id;
+
+if (band === 0) {
+  if (sessionId != null && sessionId !== '') clearBandStamps(sessionId);
+  process.exit(0);
+}
+
+if (sessionId != null && sessionId !== '') {
+  if (!tryClaimBandStamp(sessionId, band)) process.exit(0);
+  if (band === 2) tryClaimBandStamp(sessionId, 1);
+}
+
+const msg = `[suggest-compact] Main context is large (band ${band} of 2). Delegate the next broad exploration to an investigator/planner subagent. Finish the current slice first; mention handoff + /clear to the user at the next natural report instead of stopping for it.`;
 
 process.stdout.write(
   JSON.stringify({

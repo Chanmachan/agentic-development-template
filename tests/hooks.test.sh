@@ -50,8 +50,8 @@ for HOOK in .claude/hooks/suggest-compact.mjs .codex/hooks/suggest-compact.mjs; 
   run_hook "$HOOK" "$T"
   { [ "$RC" -eq 0 ] && warned; } && ok "752k real tokens -> warns" \
     || bad "should warn over default threshold, rc=$RC out=$OUT"
-  echo "$OUT" | grep -q '752,000' && ok "reports the real token total" \
-    || bad "expected 752,000 in message, out=$OUT"
+  echo "$OUT" | grep -q 'band 1 of 2' && ok "752k real tokens -> band 1" \
+    || bad "expected band 1 in message, out=$OUT"
 
   T="$TMP/under-default.jsonl"
   usage_line 0 650000 0 >"$T"
@@ -229,6 +229,52 @@ run_hook .codex/hooks/suggest-compact.mjs "$T"
 { [ "$RC" -eq 0 ] && ! warned; } && ok ".codex at standard -> silent (strict-only port)" \
   || bad ".codex must be gated off on standard, rc=$RC out=$OUT"
 unset HOOK_PROFILE
+
+# ---------------------------------------------------------------------------
+# suggest-compact once-per-band — speaks once per (session, band), not per call
+# ---------------------------------------------------------------------------
+run_sid() { # $1=hook path, $2=transcript path, $3=session id -> $RC, $OUT
+  OUT="$(printf '{"transcript_path":"%s","session_id":"%s"}' "$2" "$3" | "$NODE" "$REPO_ROOT/$1" 2>/dev/null)"
+  RC=$?
+}
+
+B1="$TMP/band1.jsonl"; usage_line 0 750000 0 >"$B1"
+B2="$TMP/band2.jsonl"; usage_line 0 900000 0 >"$B2"
+B0="$TMP/band0.jsonl"; usage_line 0 30000 0 >"$B0"
+
+for HOOK in .claude/hooks/suggest-compact.mjs .codex/hooks/suggest-compact.mjs; do
+  echo "$HOOK once per band"
+  export HOOK_PROFILE=strict
+  export SUGGEST_COMPACT_STATE_DIR="$(mktemp -d "$TMP/state.XXXXXX")"
+
+  run_sid "$HOOK" "$B1" s1
+  { [ "$RC" -eq 0 ] && warned; } && ok "first band-1 call speaks" || bad "band 1 first call, rc=$RC out=$OUT"
+  echo "$OUT" | grep -q 'band 1 of 2' && ok "message names the band" || bad "expected 'band 1 of 2', out=$OUT"
+  run_sid "$HOOK" "$B1" s1
+  { [ "$RC" -eq 0 ] && ! warned; } && ok "second band-1 call is silent" || bad "band 1 repeat, rc=$RC out=$OUT"
+
+  run_sid "$HOOK" "$B2" s1
+  { [ "$RC" -eq 0 ] && warned; } && ok "band 2 speaks once" || bad "band 2 first call, rc=$RC out=$OUT"
+  run_sid "$HOOK" "$B2" s1
+  { [ "$RC" -eq 0 ] && ! warned; } && ok "second band-2 call is silent" || bad "band 2 repeat, rc=$RC out=$OUT"
+  run_sid "$HOOK" "$B1" s1
+  { [ "$RC" -eq 0 ] && ! warned; } && ok "band 1 after band 2 stays silent" || bad "band 1 after band 2, rc=$RC out=$OUT"
+
+  run_sid "$HOOK" "$B0" s1
+  { [ "$RC" -eq 0 ] && ! warned; } && ok "below threshold -> silent" || bad "band 0, rc=$RC out=$OUT"
+  run_sid "$HOOK" "$B1" s1
+  { [ "$RC" -eq 0 ] && warned; } && ok "rising again after a drop speaks again" || bad "re-arm after drop, rc=$RC out=$OUT"
+
+  run_sid "$HOOK" "$B1" s2
+  { [ "$RC" -eq 0 ] && warned; } && ok "a distinct session is independent" || bad "session s2, rc=$RC out=$OUT"
+
+  run_hook "$HOOK" "$B1"
+  { [ "$RC" -eq 0 ] && warned; } && ok "no session id: speaks (1st)" || bad "no sid 1st, rc=$RC out=$OUT"
+  run_hook "$HOOK" "$B1"
+  { [ "$RC" -eq 0 ] && warned; } && ok "no session id: speaks every time" || bad "no sid 2nd, rc=$RC out=$OUT"
+
+  unset HOOK_PROFILE SUGGEST_COMPACT_STATE_DIR
+done
 
 echo
 printf 'passed %d, failed %d\n' "$PASS" "$FAIL"

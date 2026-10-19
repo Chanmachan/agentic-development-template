@@ -181,7 +181,7 @@ These run automatically when the configured agent writes code:
 | After file edit (PostToolUse) | Runs linter/formatter and feeds violations back to the agent |
 | Before config file edit (PreToolUse) | Blocks changes to configs, secrets, lockfiles, and version pins via the shared `scripts/lib/protected.sh` classification (ADR 0008). `*.example` / `*.sample` / `*.template` are allowlisted |
 | On completion (Stop) | Blocks the session from ending until lint, typecheck (if configured), and tests pass. Auto-detects pnpm via `pnpm-lock.yaml` or `packageManager` field |
-| Before any tool use (PreToolUse, standard and strict) | `suggest-compact` nudges `/clear` when context approaches the limit. It reads the **real token usage** recorded in the transcript (`message.usage`, sidechains excluded), not the transcript's byte size |
+| Before any tool use (PreToolUse, standard and strict) | `suggest-compact` nudges `/clear` when context approaches the limit, once per band (threshold-to-midpoint, midpoint-and-above) per session. It reads the **real token usage** recorded in the transcript (`message.usage`, sidechains excluded), not the transcript's byte size |
 | Before a Bash tool call (PreToolUse) | `git-guard` blocks commits on `main`, `--no-verify`, and force-pushes at `main`. It resolves the `cd` chain to judge the branch the command will actually run on, so a sibling worktree on a feature branch is allowed. Escape hatch: `ALLOW_MAIN_COMMIT=1` |
 | On session/subagent start (SessionStart, SubagentStart — all profiles) | `worktree-setup.sh` runs `sync-local-docs.sh` so a fresh worktree's `tasks/` symlink is set up without a manual step — see ADR 0009 |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
