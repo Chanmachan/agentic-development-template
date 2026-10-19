@@ -74,6 +74,8 @@ Node.js 実装で、ツール使用イベントの累積トークン数を概算
 
 入力は `stdin` から JSON で受け取り、`hookSpecificOutput.additionalContext` を返す Claude Code の標準スキーマに従う。
 
+メッセージは毎回出さず、`session_id` ごとに帯 (1: 閾値〜閾値と窓の中間、2: 中間以上) を初めて跨いだときに 1 回だけ出す。帯 2 を出すと帯 1 も消費済みとし、閾値未満に戻ると両方のスタンプを消して再び出せるようにする。スタンプは `SUGGEST_COMPACT_STATE_DIR` (未設定なら `os.tmpdir()`) に `open(..., 'wx')` で原子的に確保する。`session_id` が無い入力では従来どおり毎回出す。
+
 ### 5. settings.json の更新
 
 `.claude/settings.json` に suggest-compact を `PreToolUse` (全マッチャー) として追加する。ただしフック自体が `HOOK_PROFILE` で自己無効化するため、settings.json は profile を意識しなくてよい。
