@@ -55,6 +55,7 @@ plan 必須 (いずれか該当したら計画フェーズを挟む):
 
 ### 3. 承認を得る
 
+- 提示の前に Plan review (CLAUDE.md Workflow phase 2: 計画レビュアー → `/tacit-review`) を回し、指摘の採否と棄却理由を todo に書く。上の skip 条件に当たる軽微な変更は plan review も不要
 - `tasks/<id>-todo.md` をユーザに提示し、**実装に入る前に明示的な OK を得る**
 - ユーザが「進めて」と言うまで Edit / Write を実行しない (Plan Mode の本旨)
 - 計画への指摘があれば `tasks/<id>-todo.md` を更新して再承認

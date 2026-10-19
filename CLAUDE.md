@@ -5,10 +5,11 @@ See: @AGENTS.md
 ## Workflow phases
 
 1. **Plan** — 非自明な変更は `planner` subagent または Plan Mode (`plan-mode` skill) で計画し、成果物を `tasks/{id}-todo.md` に残し、`tasks/tasks.jsonl` に状態行を追記する (`planned`/`in_progress`)。
-2. **Implement** — `tdd` skill に従い、失敗するテスト → 最小実装 → リファクタの順で進める。
-3. **Verify** — lint / typecheck / test を通す (`stop-check.sh` が強制)。
-4. **Commit** — `.claude/rules/git.md` に従う。`main` への直接コミットと `--no-verify` は `git-guard.sh` がブロックする。PR レビュー対応は `/fix-review`。指摘ゼロまで自動で回すなら `/review-cycle`、暗黙の前提を洗うなら `/tacit-review`。
-5. **Archive** — MERGED したら `tasks/tasks.jsonl` の当該行を `status:"done"` + `done` パスに更新し、`tasks/{id}-todo.md` の内容を `tasks/done/{id}.md` に移す。`id` は内容が一目で分かる slug。
+2. **Plan review** — 実装の前に、上位モデルの planner レビュー (判断の当否・事実誤認・抜け) → `/tacit-review plan=tasks/{id}-todo.md` の 2 段を回す。**定常工程で省略しない** (`plan-mode` skill の skip 条件に当たる軽微な変更を除く)。指摘は裏取りしてから採否を決め、結論と棄却理由を todo に書き、その結果込みで plan の承認を求める (`.claude/rules/model-roles.md`)。
+3. **Implement** — `tdd` skill に従い、失敗するテスト → 最小実装 → リファクタの順で進める。
+4. **Verify** — lint / typecheck / test を通す (`stop-check.sh` が強制)。
+5. **Commit** — `.claude/rules/git.md` に従う。`main` への直接コミットと `--no-verify` は `git-guard.sh` がブロックする。PR レビュー対応は `/fix-review`。指摘ゼロまで自動で回すなら `/review-cycle`、暗黙の前提を洗うなら `/tacit-review`。
+6. **Archive** — MERGED したら `tasks/tasks.jsonl` の当該行を `status:"done"` + `done` パスに更新し、`tasks/{id}-todo.md` の内容を `tasks/done/{id}.md` に移す。`id` は内容が一目で分かる slug。
 
 ## Task tracking
 
@@ -28,10 +29,10 @@ See: @AGENTS.md
 
 ## Skills and subagents
 
-- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `code-review`, `repo-audit`, `context-{dev,review,research,debug}` (オンデマンドロード)
+- `.claude/skills/` — `spec-interview`, `plan-mode`, `tdd`, `mutation-testing`, `code-review`, `repo-audit`, `orchestration`, `context-{dev,review,research,debug}` (オンデマンドロード)
 - `.agents/skills/` — `fix-review`, `handoff`, `land-task`, `multi-review`, `review-cycle`, `verify-guide` (Codex workflow / オンデマンドロード)
 - `.claude/agents/` — `planner`, `code-reviewer`, `investigator`, `enumerator` (委譲時にロード)
-- `.claude/commands/` — `/fix-review`, `/review-cycle`, `/tacit-review`, `/multi-review`, `/handoff`, `/land-task`, `/verify-guide`, `/weekly-progress`
+- `.claude/commands/` — `/fix-review`, `/review-cycle`, `/tacit-review`, `/multi-review`, `/handoff`, `/land-task`, `/verify-guide`, `/weekly-progress`, `/focus`
 - `.claude/rules/` 索引: `git` / `tasks` / `pitfalls` / `model-roles` / `comments`。path frontmatter の無い rule (`git` / `pitfalls` / `model-roles` / `comments`) はセッション開始時に一読。`tasks` rule は ADR 0009 の path-scoping に従い、tasks 配下や `scripts/sync-tasks.sh` を触るときだけロードされる (ただし `tasks/tasks.jsonl` のセッション開始スキャンは上記 Task tracking の明示指示であり、rule ロードの例外)。
 
 ## Hook profiles and contexts

@@ -111,12 +111,12 @@ codex    # Codex
 │   ├── settings.json      # Claude Code Hook & permission settings
 │   ├── rules/             # git.md / comments.md / pitfalls.md / model-roles.md (always-loaded),
 │   │                      # tasks.md (paths-scoped to tasks/**, see ADR 0009)
-│   ├── agents/            # Subagents (planner, code-reviewer, investigator)
+│   ├── agents/            # Subagents (planner, code-reviewer, investigator, enumerator)
 │   │   └── reviewers/     # Per-perspective review subagents (correctness, security, tests, performance, readability, docs-adr)
-│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, code-review, repo-audit,
-│   │                      # context-dev/review/research/debug)
+│   ├── skills/            # On-demand skills (spec-interview, plan-mode, tdd, mutation-testing, code-review,
+│   │                      # repo-audit, orchestration, context-dev/review/research/debug)
 │   ├── commands/          # Slash commands (/fix-review, /review-cycle, /tacit-review, /multi-review,
-│   │                      # /handoff, /land-task, /verify-guide, /weekly-progress)
+│   │                      # /handoff, /land-task, /verify-guide, /weekly-progress, /focus)
 │   └── hooks/
 │       ├── lib/profile.sh     # HOOK_PROFILE gating (sourced by other hooks; copy kept in sync with .codex, see ADR 0008)
 │       ├── protect-config.sh  # Block edits to configs/secrets (PreToolUse) — classification via scripts/lib/protected.sh
