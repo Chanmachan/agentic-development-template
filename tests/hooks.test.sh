@@ -206,6 +206,47 @@ for HOOK in .claude/hooks/git-guard.sh .codex/hooks/git-guard.sh; do
   { ! blocked; } && ok "git mentioned inside echo -> allowed" \
     || bad "false positive on quoted mention, rc=$RC out=$OUT"
 
+  guard "$HOOK" "git push --force origin main"
+  grep -q 'Push to your feature branch instead' <<< "$OUT" \
+    && ok "force-push block message carries remediation hint" \
+    || bad "hint missing, out=$OUT"
+
+  GG_DOC="$TMP/gg-docs"
+  mkdir -p "$GG_DOC/sub"
+  printf 'summary\n\nGenerated with Claude Code\n' >"$GG_DOC/sig.md"
+  printf 'summary only\n' >"$GG_DOC/clean.md"
+  printf 'see https://claude.ai/code/session_abc\n' >"$GG_DOC/sub/rel.md"
+
+  pr_blocked() { # $1=label $2=command
+    guard "$HOOK" "$2"
+    blocked && ok "$1 -> blocked" || bad "$1 must block, rc=$RC out=$OUT"
+  }
+  pr_allowed() { # $1=label $2=command
+    guard "$HOOK" "$2"
+    { ! blocked; } && ok "$1 -> allowed" || bad "$1 false block, rc=$RC out=$OUT"
+  }
+
+  pr_blocked "inline signature" "gh pr create --title t --body 'x Generated with [Claude Code]'"
+  pr_blocked "inline Cursor signature" "gh pr create --title t --body 'Generated with Cursor'"
+  pr_blocked "inline session URL" "gh pr create --title t --body 'https://claude.ai/code/session_01abc'"
+  pr_blocked "mixed-case pattern" "gh pr create --title t --body 'GENERATED WITH claude code'"
+  pr_blocked "--body-file relative after cd" "cd $GG_DOC/sub && gh pr create --title t --body-file rel.md"
+  pr_blocked "--body-file= absolute" "gh pr create --title t --body-file=$GG_DOC/sig.md"
+  pr_blocked "-F file" "gh pr create --title t -F $GG_DOC/sig.md"
+  pr_blocked "-Ffile" "gh pr create --title t -F$GG_DOC/sig.md"
+  pr_blocked 'cat substitution' "gh pr create --title t --body \"\$(cat $GG_DOC/sig.md)\""
+  pr_blocked 'redirect substitution' "gh pr create --title t --body \"\$(< $GG_DOC/sig.md)\""
+  pr_blocked "absolute path gh" "/usr/bin/gh pr create --body 'Generated with Claude Code'"
+  pr_blocked "env-prefixed gh pr edit" "env FOO=1 gh pr edit 1 --body 'Generated with Claude Code'"
+  pr_blocked "gh pr comment" "gh pr comment 1 --body 'Generated with Claude Code'"
+
+  pr_allowed "clean body" "gh pr create --title t --body 'all good'"
+  pr_allowed "clean body file" "gh pr create --title t --body-file $GG_DOC/clean.md"
+  pr_allowed "signature in echo" "echo 'Generated with Claude Code'"
+  pr_allowed "gh issue create" "gh issue create --body 'Generated with Claude Code'"
+  pr_allowed "gh pr view" "gh pr view 1 'Generated with Claude Code'"
+  pr_allowed "unreadable body file" "gh pr create --title t --body-file $GG_DOC/missing.md"
+
   unset HOOK_PROFILE
 done
 

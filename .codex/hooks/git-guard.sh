@@ -18,6 +18,9 @@
 # from, so `cd <worktree> && git commit ...` is judged against the branch that
 # will actually receive the commit rather than the hook's own cwd.
 #
+# Also blocks `gh pr …` bodies that carry a PR_BODY_FORBIDDEN pattern
+# (see .claude/rules/git.md); scans the raw command string and body-file paths.
+#
 # Fails open (exit 0) on anything unexpected — missing jq, unparseable JSON,
 # no git repo, etc. — so a hook bug never blocks unrelated development.
 set -euo pipefail
@@ -31,6 +34,200 @@ command_str="$(jq -r '.tool_input.command // empty' <<< "$input" 2>/dev/null)" |
 [ -z "$command_str" ] && exit 0
 
 segments="$(printf '%s\n' "$command_str" | tr ';&|' '\n')"
+
+PR_BODY_FORBIDDEN=(
+  'Generated with [Claude Code]'
+  'Generated with Claude Code'
+  'Generated with Cursor'
+  'claude.ai/code/session_'
+)
+gh_pr_trigger=0
+gh_pr_block_msg="BLOCKED by git-guard: PR body contains an agent tool signature / session URL (.claude/rules/git.md). Remove the footer; if you only need to mention it, paraphrase."
+
+pr_body_has_signature() {
+  local pat
+  for pat in "${PR_BODY_FORBIDDEN[@]}"; do
+    printf '%s' "$1" | grep -Fiq -- "$pat" && return 0
+  done
+  return 1
+}
+
+gh_command_position_norm() {
+  local s="$1"
+  while :; do
+    s="$(printf '%s' "$s" | sed -E 's/^[[:space:]]+//; s/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//')"
+    case "$s" in
+      env\ *)
+        s="${s#env}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      command\ *)
+        s="${s#command}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      exec\ *)
+        s="${s#exec}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      nohup\ *)
+        s="${s#nohup}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      time\ *)
+        s="${s#time}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      !\ *)
+        s="${s#!}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      \(* )
+        s="${s#(}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      {* )
+        s="${s#\{}"
+        s="${s#"${s%%[![:space:]]*}"}"
+        ;;
+      /*)
+        first="${s%% *}"
+        rest=""
+        if [ "$first" != "$s" ]; then
+          rest="${s#"$first"}"
+          rest="${rest#"${rest%%[![:space:]]*}"}"
+        fi
+        if [ "${first##*/}" = "gh" ]; then
+          if [ -n "$rest" ]; then
+            s="gh $rest"
+          else
+            s="gh"
+          fi
+        elif printf '%s' "$s" | grep -Eq '^/[^[:space:]]+[[:space:]]'; then
+          s="$(printf '%s' "$s" | sed -E 's|^/[^[:space:]]+[[:space:]]+||')"
+        else
+          break
+        fi
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+  printf '%s' "$s"
+}
+
+segment_triggers_gh_pr_body_check() {
+  local seg="$1"
+  local gh_s
+  gh_s="$(gh_command_position_norm "$seg")"
+  case "$gh_s" in
+    gh|gh\ *) ;;
+    *) return 1 ;;
+  esac
+  printf '%s' "$seg" | grep -Fq 'pr' || return 1
+  printf '%s' "$seg" | grep -Eq 'create|edit|comment|review|merge' || return 1
+  return 0
+}
+
+strip_quotes_path() {
+  local p="$1"
+  p="${p#"${p%%[![:space:]]*}"}"
+  p="${p%"${p##*[![:space:]]}"}"
+  case "$p" in
+    \"*\") p="${p#\"}"; p="${p%\"}" ;;
+    \'*\') p="${p#\'}"; p="${p%\'}" ;;
+  esac
+  printf '%s' "$p"
+}
+
+read_body_file_at_branch_dir() {
+  local raw="$1"
+  local p content
+  p="$(strip_quotes_path "$raw")"
+  case "$p" in
+    ''|'-'|'$'*|'~'*) return 1 ;;
+  esac
+  if [[ "$p" != /* ]]; then
+    p="$branch_dir/$p"
+  fi
+  [ -r "$p" ] || return 1
+  content="$(cat "$p")"
+  printf '%s' "$content"
+}
+
+collect_body_file_paths() {
+  local -a words
+  local w next_bf=0 next_f=0
+  read -ra words <<< "$command_str"
+  for w in "${words[@]}"; do
+    case "$w" in
+      --body-file) next_bf=1 ;;
+      --body-file=*)
+        printf '%s\n' "${w#--body-file=}"
+        ;;
+      -F) next_f=1 ;;
+      -F=*)
+        printf '%s\n' "${w#-F=}"
+        ;;
+      -F[^=]*)
+        if [ "$w" != "-F-" ]; then
+          local attached="${w#-F}"
+          [ -n "$attached" ] && printf '%s\n' "$attached"
+        fi
+        ;;
+      *)
+        if [ "$next_bf" -eq 1 ]; then
+          printf '%s\n' "$w"
+          next_bf=0
+        elif [ "$next_f" -eq 1 ]; then
+          printf '%s\n' "$w"
+          next_f=0
+        fi
+        ;;
+    esac
+  done
+}
+
+check_gh_pr_body_signatures() {
+  if pr_body_has_signature "$command_str"; then
+    echo "$gh_pr_block_msg" >&2
+    exit 2
+  fi
+
+  local path content sub p
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    content="$(read_body_file_at_branch_dir "$path")" || continue
+    if pr_body_has_signature "$content"; then
+      echo "$gh_pr_block_msg" >&2
+      exit 2
+    fi
+  done < <(collect_body_file_paths)
+
+  while IFS= read -r sub; do
+    [ -z "$sub" ] && continue
+    p=""
+    case "$sub" in
+      '$(cat '*)
+        p="${sub#\$(cat }"
+        p="${p%)}"
+        ;;
+      *)
+        sub_redir_prefix='$(< '
+        if [ "${sub#"$sub_redir_prefix"}" != "$sub" ]; then
+          p="${sub#"$sub_redir_prefix"}"
+          p="${p%)}"
+        fi
+        ;;
+    esac
+    [ -z "$p" ] && continue
+    content="$(read_body_file_at_branch_dir "$p")" || continue
+    if pr_body_has_signature "$content"; then
+      echo "$gh_pr_block_msg" >&2
+      exit 2
+    fi
+  done < <(printf '%s' "$command_str" | grep -oE '\$\(cat[[:space:]]+[^)]+\)|\$\(<[[:space:]]+[^)]+\)' || true)
+}
 
 # Virtual cwd for the segments that follow, so the branch is read where the git
 # command will ACTUALLY run. Commands here often take the form
@@ -80,6 +277,10 @@ while IFS= read -r seg; do
       ;;
   esac
 
+  if segment_triggers_gh_pr_body_check "$seg"; then
+    gh_pr_trigger=1
+  fi
+
   case "$s" in
     git\ *|git) ;;
     *) continue ;;
@@ -107,10 +308,14 @@ while IFS= read -r seg; do
   if printf '%s' "$s_noq" | grep -Eq '^git[[:space:]]+push([[:space:]]|$)' \
     && printf '%s' "$s_noq" | grep -Eq -- '(--force([[:space:]]|$|-)|[[:space:]]-f([[:space:]]|$))'; then
     if printf '%s' "$s_noq" | grep -Eq '(^|[^[:alnum:]_])main([^[:alnum:]_]|$)' || [ "$branch" = "main" ]; then
-      echo "BLOCKED by git-guard: force-push targeting 'main' (or issued while on main) is forbidden." >&2
+      echo "BLOCKED by git-guard: force-push targeting 'main' (or issued while on main) is forbidden. Push to your feature branch instead; if main history must be rewritten, stop and ask the user." >&2
       exit 2
     fi
   fi
 done <<< "$segments"
+
+if [ "$gh_pr_trigger" -eq 1 ]; then
+  check_gh_pr_body_signatures
+fi
 
 exit 0
