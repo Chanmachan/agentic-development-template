@@ -34,4 +34,5 @@ alwaysApply: true
 ## Co-author / ツール表記
 
 - コミットメッセージに `Co-Authored-By` を付けない。
+- `Claude-Session:` などのエージェント trailer を付けない (commit-msg チェックが `Co-Authored-By` と併せてブロックする)。
 - コミットメッセージや PR 本文にツールの生成表記（例: "🤖 Generated with Claude Code" / "Generated with Cursor"）を付けない。
