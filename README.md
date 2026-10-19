@@ -203,7 +203,7 @@ These run automatically when the configured agent writes code:
 | `tests` | Every `tests/*.test.sh`, plus `scripts/test-cursor-hooks.sh` if present (guarded by a file-existence check so CI stays green whether or not the `.cursor/` harness has landed on a given branch) |
 | `shellcheck` | `scripts/*.sh` and `scripts/lib/*.sh`; `.claude/hooks/*.sh` and `.claude/hooks/lib/*.sh` (two explicit levels, not recursive); `.codex/hooks/*.sh` and `.codex/hooks/lib/*.sh` (same, two levels); `.cursor/hooks/**/*.sh` recursively via `find` if `.cursor/hooks` exists — at `--severity=error`, a warning-level gate for now; tightening it is future work |
 
-`tests` and `shellcheck` are skipped on docs-only changes via a job-level `if:`. A job skipped that way reports as success and does not block a required check, whereas a workflow skipped by `on.<event>.paths` filters leaves required checks pending forever — so use job-level `if:`, not path filters.
+`tests` and `shellcheck` are skipped on docs-only changes via a job-level `if:`. A job skipped that way reports as success and does not block a required check, whereas a workflow skipped by `on.<event>.paths` filters leaves required checks pending forever — so use job-level `if:`, not path filters. The condition is `!cancelled() && needs.changes.outputs.code != 'false'`, so a failed or crashed `changes` job runs everything instead of skipping it.
 
 This is a language-agnostic template with no application code yet, so CI only covers the template's own testable surface. Add lint/typecheck/build/test jobs for your stack once you've filled in `docs/spec.md` and picked a language (see the Checklist below). See ADR 0007 for the rationale.
 

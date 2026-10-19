@@ -96,6 +96,8 @@ Conventional Commits validator を本リポジトリの prefix セットに合�
   git 失敗、空の変更リストはすべて `::warning::` を出して `code=true` にする。
 - required check との関係: job レベル `if:` でスキップされたジョブは success 扱いで required check を塞がない。
   `on.<event>.paths` フィルタはワークフロー自体が起動せず required check が pending のまま残るため使わない。
+- 条件は `!cancelled() && needs.changes.outputs.code != 'false'`。`changes` ジョブ自体が失敗すると `needs` 先は
+  skip (= success 扱い) になり素通りするため、`== 'true'` ではなく「明示的に false のときだけ skip」にする。
 
 ## References
 
