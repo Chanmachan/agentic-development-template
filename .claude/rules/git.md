@@ -54,6 +54,7 @@ Examples:
 - Do not add `Co-Authored-By` to commit messages.
 - Do not add agent trailers such as `Claude-Session:`; the commit-msg check blocks them along with `Co-Authored-By`.
 - Do not add tool attribution footers (e.g. "🤖 Generated with Claude Code" / "Generated with Cursor") to commit messages or PR bodies.
+- git-guard blocks `gh pr create/edit/comment/review/merge` whose body (inline, `--body-file`, or `$(cat ...)`) carries such a signature or a Claude Code session URL.
 
 ## Pull Request Template
 
