@@ -32,6 +32,7 @@ input="$(cat)"
 
 command_str="$(jq -r '.tool_input.command // empty' <<< "$input" 2>/dev/null)" || exit 0
 [ -z "$command_str" ] && exit 0
+command_str="${command_str//"\\"$'\n'/ }"
 
 segments="$(printf '%s\n' "$command_str" | tr ';&|' '\n')"
 
@@ -42,6 +43,7 @@ PR_BODY_FORBIDDEN=(
   'claude.ai/code/session_'
 )
 gh_pr_trigger=0
+gh_pr_dir="."
 gh_pr_block_msg="BLOCKED by git-guard: PR body contains an agent tool signature / session URL (.claude/rules/git.md). Remove the footer; if you only need to mention it, paraphrase."
 
 pr_body_has_signature() {
@@ -102,8 +104,8 @@ gh_command_position_norm() {
           else
             s="gh"
           fi
-        elif printf '%s' "$s" | grep -Eq '^/[^[:space:]]+[[:space:]]'; then
-          s="$(printf '%s' "$s" | sed -E 's|^/[^[:space:]]+[[:space:]]+||')"
+        elif [[ "${first##*/}" =~ ^(env|command|exec|nohup|time)$ && -n "$rest" ]]; then
+          s="${first##*/} $rest"
         else
           break
         fi
@@ -124,9 +126,21 @@ segment_triggers_gh_pr_body_check() {
     gh|gh\ *) ;;
     *) return 1 ;;
   esac
-  printf '%s' "$seg" | grep -Fq 'pr' || return 1
-  printf '%s' "$seg" | grep -Eq 'create|edit|comment|review|merge' || return 1
-  return 0
+  local -a t
+  local i=1
+  read -ra t <<< "$gh_s"
+  while :; do
+    case "${t[i]:-}" in
+      -R|--repo) i=$((i + 2)) ;;
+      -R?*|--repo=*) i=$((i + 1)) ;;
+      *) break ;;
+    esac
+  done
+  [ "${t[i]:-}" = "pr" ] || return 1
+  case "${t[i+1]:-}" in
+    create|edit|comment|review|merge) return 0 ;;
+  esac
+  return 1
 }
 
 strip_quotes_path() {
@@ -148,7 +162,7 @@ read_body_file_at_branch_dir() {
     ''|'-'|'$'*|'~'*) return 1 ;;
   esac
   if [[ "$p" != /* ]]; then
-    p="$branch_dir/$p"
+    p="$gh_pr_dir/$p"
   fi
   [ -r "$p" ] || return 1
   content="$(cat "$p")"
@@ -158,7 +172,7 @@ read_body_file_at_branch_dir() {
 collect_body_file_paths() {
   local -a words
   local w next_bf=0 next_f=0
-  read -ra words <<< "$command_str"
+  read -ra words <<< "${command_str//$'\n'/ }"
   for w in "${words[@]}"; do
     case "$w" in
       --body-file) next_bf=1 ;;
@@ -278,6 +292,9 @@ while IFS= read -r seg; do
   esac
 
   if segment_triggers_gh_pr_body_check "$seg"; then
+    if [ "$gh_pr_trigger" -eq 0 ]; then
+      gh_pr_dir="$branch_dir"
+    fi
     gh_pr_trigger=1
   fi
 

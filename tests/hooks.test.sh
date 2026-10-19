@@ -223,7 +223,7 @@ for HOOK in .claude/hooks/git-guard.sh .codex/hooks/git-guard.sh; do
   }
   pr_allowed() { # $1=label $2=command
     guard "$HOOK" "$2"
-    { ! blocked; } && ok "$1 -> allowed" || bad "$1 false block, rc=$RC out=$OUT"
+    [ "$RC" -eq 0 ] && ok "$1 -> allowed" || bad "$1 must exit 0, rc=$RC out=$OUT"
   }
 
   pr_blocked "inline signature" "gh pr create --title t --body 'x Generated with [Claude Code]'"
@@ -239,6 +239,20 @@ for HOOK in .claude/hooks/git-guard.sh .codex/hooks/git-guard.sh; do
   pr_blocked "absolute path gh" "/usr/bin/gh pr create --body 'Generated with Claude Code'"
   pr_blocked "env-prefixed gh pr edit" "env FOO=1 gh pr edit 1 --body 'Generated with Claude Code'"
   pr_blocked "gh pr comment" "gh pr comment 1 --body 'Generated with Claude Code'"
+
+  pr_allowed "issue create with 'Improve' title" "gh issue create --title 'Improve docs' --body 'Generated with Claude Code'"
+  pr_allowed "pr view --comments" "gh pr view 1 --comments 'Generated with Claude Code'"
+  pr_allowed "other absolute executable wrapping gh text" "/bin/echo gh pr create --body 'Generated with Claude Code'"
+  pr_blocked "-R repo flag before pr" "gh -R owner/repo pr create --body 'Generated with Claude Code'"
+  pr_blocked "--repo= flag before pr" "gh --repo=owner/repo pr edit 1 --body 'Generated with Claude Code'"
+  pr_blocked "continuation between gh tokens" "gh pr \\
+  create --body 'Generated with Claude Code'"
+  pr_blocked "continuation before --body-file" "gh pr create --title t \\
+  --body-file $GG_DOC/sig.md"
+  pr_blocked "cd away after the gh command" "cd $GG_DOC/sub && gh pr create -t t -F rel.md && cd $GG_DOC"
+  guard "$HOOK" "cd $GG_WT && git commit \\
+  --no-verify -m x"
+  blocked && ok "continuation before --no-verify -> blocked" || bad "must block, rc=$RC out=$OUT"
 
   pr_allowed "clean body" "gh pr create --title t --body 'all good'"
   pr_allowed "clean body file" "gh pr create --title t --body-file $GG_DOC/clean.md"
