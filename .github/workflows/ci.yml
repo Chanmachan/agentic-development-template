@@ -31,6 +31,22 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect Code Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.detect.outputs.code }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: Skip tests and shellcheck for docs-only changes
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/ci-detect-code-changes.sh
+
   doc-health:
     name: Doc Health
     runs-on: ubuntu-latest
@@ -41,6 +57,8 @@ jobs:
 
   tests:
     name: Bash Test Suite
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -75,6 +93,8 @@ jobs:
 
   shellcheck:
     name: Shellcheck
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
