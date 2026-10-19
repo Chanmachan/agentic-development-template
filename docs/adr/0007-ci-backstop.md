@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-06
-- Last-validated: 2026-07-06
+- Last-validated: 2026-10-19
 
 ## Context
 
@@ -81,6 +81,21 @@ Conventional Commits validator を本リポジトリの prefix セットに合�
 - shellcheck の `--severity=warning` 以上への引き上げ
 - 言語スタック選定後の lint/typecheck/build/test ジョブ追加
 - CI 上での `HOOK_PROFILE=strict` 相当の追加チェック (テレメトリ、フック実行回数の計測など)
+
+## Addendum: docs-only change では tests / shellcheck をスキップする
+
+`changes` ジョブが `scripts/ci-detect-code-changes.sh` で変更パスを判定し、`tests` と `shellcheck` を job レベルの
+`if:` で制御する。`doc-health` は常に実行する。
+
+- docs-only の定義はスクリプト冒頭の `is_docs_only` 1 箇所: `docs/`・`idea/`・`research/` 配下と、リポジトリ直下の
+  `*.md`。ハーネス自体 (`.claude/` `.codex/` `.cursor/` `.agents/` `contexts/` `scripts/` `tests/`) がこのテンプレートの
+  被テスト対象なので code 扱い。利用者はプロジェクトに合わせて書き換える。
+- 判定は API を使わない素の git (`git diff --name-only --no-renames`)。rename は旧パス・新パスの両方が報告される
+  ため、code から docs への移動で削除が隠れない。
+- fail-safe は常に全ジョブ実行 (`code=true`) の方向: 未知のイベント、before SHA の欠落・全ゼロ、到達不能な SHA、
+  git 失敗、空の変更リストはすべて `::warning::` を出して `code=true` にする。
+- required check との関係: job レベル `if:` でスキップされたジョブは success 扱いで required check を塞がない。
+  `on.<event>.paths` フィルタはワークフロー自体が起動せず required check が pending のまま残るため使わない。
 
 ## References
 
