@@ -52,6 +52,7 @@ Examples:
 ## Co-author / tool attribution
 
 - Do not add `Co-Authored-By` to commit messages.
+- Do not add agent trailers such as `Claude-Session:`; the commit-msg check blocks them along with `Co-Authored-By`.
 - Do not add tool attribution footers (e.g. "🤖 Generated with Claude Code" / "Generated with Cursor") to commit messages or PR bodies.
 
 ## Pull Request Template

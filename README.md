@@ -185,7 +185,7 @@ These run automatically when the configured agent writes code:
 | Before a Bash tool call (PreToolUse) | `git-guard` blocks commits on `main`, `--no-verify`, and force-pushes at `main`. It resolves the `cd` chain to judge the branch the command will actually run on, so a sibling worktree on a feature branch is allowed. Escape hatch: `ALLOW_MAIN_COMMIT=1` |
 | On session/subagent start (SessionStart, SubagentStart — all profiles) | `worktree-setup.sh` runs `sync-local-docs.sh` so a fresh worktree's `tasks/` symlink is set up without a manual step — see ADR 0009 |
 | Before commit (Lefthook `pre-commit`) | Checks `AGENTS.md` line count and ADR freshness |
-| Before commit (Lefthook `commit-msg`) | Rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`; `Merge`/`Revert` exempted) |
+| Before commit (Lefthook `commit-msg`) | `bash scripts/check-commit-msg.sh` rejects commit messages that don't follow `.claude/rules/git.md` (`prefix: description`, single line, no agent trailers; editor comment lines ignored; `Merge`/`Revert` exempted) |
 | On every PR / push to `main` (GitHub Actions) | Agent-independent backstop: doc-health, the `tests/*.test.sh` suite, and shellcheck re-run in CI regardless of whether local hooks ran — see ADR 0007 |
 
 `check-doc-health.sh` emits WARN (non-blocking) on ADR staleness based on `DOC_HEALTH_WARN_DAYS` (default `14`) and `DOC_HEALTH_ERROR_DAYS` (default `30`) days since `Last-validated`; both thresholds only differ in message wording — neither fails the check. Non-numeric values fall back to the default with a WARN.
