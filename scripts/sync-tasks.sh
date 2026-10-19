@@ -8,6 +8,7 @@
 # 使い方:
 #   bash scripts/sync-tasks.sh list                       # 全行を表示（グローバルビュー）
 #   bash scripts/sync-tasks.sh get <id>                   # 1 タスクの行を表示
+#   bash scripts/sync-tasks.sh inflight                   # status≠done の行だけを 1 行 1 JSON で表示
 #   bash scripts/sync-tasks.sh upsert <id> key=value ...  # id をキーに 1 行だけ upsert
 #   bash scripts/sync-tasks.sh lint                       # スキーマ/一意性チェック (JSON妥当性・id重複・status enum・done整合・todo存在)
 #
@@ -67,6 +68,24 @@ for line in open(reg, encoding="utf-8"):
 PY
     ;;
 
+  inflight)
+    [ -f "$REGISTRY" ] || exit 0
+    python3 - "$REGISTRY" <<'PY'
+import sys, json
+KEYS = ["id", "title", "status", "branch", "pr", "parent", "todo", "updated", "note"]
+for line in open(sys.argv[1], encoding="utf-8"):
+    if not line.strip():
+        continue
+    try:
+        o = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    if not isinstance(o, dict) or o.get("status") == "done":
+        continue
+    print(json.dumps({k: o.get(k) for k in KEYS}, ensure_ascii=False))
+PY
+    ;;
+
   upsert)
     id="${1:?usage: sync-tasks.sh upsert <id> key=value ...}"
     shift
@@ -104,7 +123,7 @@ for p in pairs:
     fields[k] = coerce(k, v)
 fields.setdefault("updated", datetime.date.today().isoformat())
 
-SCHEMA = ["id", "title", "status", "branch", "pr", "todo", "done", "updated", "note"]
+SCHEMA = ["id", "title", "status", "branch", "parent", "pr", "todo", "done", "updated", "note"]
 
 # SCHEMA 順にフィールドを並べ、スキーマ外のキーは後ろに付ける。
 # dict-union (a | b) は Python 3.9+ 限定のため {**a, **b} で広い環境に対応。
@@ -168,6 +187,7 @@ VALID_STATUS = {"planned", "in_progress", "review", "blocked", "done"}
 
 errors = []
 seen_ids = {}
+rows = []
 count = 0
 
 with open(reg, encoding="utf-8") as f:
@@ -187,6 +207,7 @@ with open(reg, encoding="utf-8") as f:
             )
             continue
 
+        rows.append((lineno, obj))
         tid = obj.get("id")
         if not tid:
             errors.append(f"line {lineno}: missing id")
@@ -241,6 +262,19 @@ with open(reg, encoding="utf-8") as f:
                 if not os.path.isfile(todo_path):
                     errors.append(f"line {lineno}: todo is not a file: {todo}")
 
+for lineno, obj in rows:
+    if "parent" not in obj or obj["parent"] is None:
+        continue
+    parent = obj["parent"]
+    if not isinstance(parent, str):
+        errors.append(
+            f"line {lineno}: invalid row (parent must be str or null, got {type(parent).__name__})"
+        )
+    elif parent == obj.get("id"):
+        errors.append(f"line {lineno}: parent '{parent}' is the row itself")
+    elif parent not in seen_ids:
+        errors.append(f"line {lineno}: parent '{parent}' is not an existing task id")
+
 if errors:
     for e in errors:
         print("FAIL: " + e)
@@ -251,7 +285,7 @@ PY
     ;;
 
   *)
-    echo "usage: sync-tasks.sh {list | get <id> | upsert <id> key=value ... | lint}" >&2
+    echo "usage: sync-tasks.sh {list | get <id> | inflight | upsert <id> key=value ... | lint}" >&2
     exit 2
     ;;
 esac
