@@ -233,6 +233,56 @@ assert_match "FAIL: line 2: invalid row (status must be str" "$lint_out"
 assert_match "FAIL: line 3: invalid row (todo must be str" "$lint_out"
 assert_match "FAIL: line 4: invalid row (done must be str" "$lint_out"
 
+# 20. parent: upsert places it right after branch
+rm -f "$REG"
+bash "$SCRIPT" upsert par title=Parent status=in_progress branch=feature/p todo=tasks/par-todo.md >/dev/null
+bash "$SCRIPT" upsert kid title=Kid status=planned parent=par todo=tasks/kid-todo.md >/dev/null
+bash "$SCRIPT" upsert dn title=Done status=done done=tasks/done/dn.md >/dev/null
+kid_keys="$(python3 -c 'import json,sys; print(",".join(json.loads(sys.argv[1]).keys()))' "$(bash "$SCRIPT" get kid)")"
+assert_match "status,branch,parent,pr,todo" "$kid_keys"
+
+# 21. inflight: filters done, fixed key order, tolerates malformed line
+printf '%s\n' '{ not json' >>"$REG"
+out="$(bash "$SCRIPT" inflight)"
+assert_match '"id": "par"' "$out"
+assert_match '"id": "kid"' "$out"
+assert_no_match '"id": "dn"' "$out"
+[ "$(wc -l <<<"$out" | tr -d ' ')" -eq 2 ] || { echo "FAIL: inflight expected 2 lines"; fail=1; }
+keys="$(python3 -c 'import json,sys; print(",".join(json.loads(sys.stdin.readline()).keys()))' <<<"$out")"
+[ "$keys" = "id,title,status,branch,pr,parent,todo,updated,note" ] || { echo "FAIL: inflight keys: $keys"; fail=1; }
+
+# 22. inflight: missing registry -> no output, exit 0
+rm -f "$REG"
+out="$(bash "$SCRIPT" inflight)"; rc=$?
+[ "$rc" -eq 0 ] && [ -z "$out" ] || { echo "FAIL: inflight on missing registry (rc=$rc)"; fail=1; }
+
+# 23. lint: parent accepted when valid / null / absent
+touch tasks/p-todo.md tasks/c-todo.md tasks/n-todo.md tasks/a-todo.md
+cat >"$REG" <<'EOF'
+{"id": "p", "status": "planned", "todo": "tasks/p-todo.md"}
+{"id": "c", "status": "planned", "parent": "p", "todo": "tasks/c-todo.md"}
+{"id": "n", "status": "planned", "parent": null, "todo": "tasks/n-todo.md"}
+{"id": "a", "status": "planned", "todo": "tasks/a-todo.md"}
+EOF
+lint_out="$(bash "$SCRIPT" lint 2>&1)"; lint_rc=$?
+[ "$lint_rc" -eq 0 ] || { echo "FAIL: lint should accept valid parent (rc=$lint_rc)"; echo "$lint_out"; fail=1; }
+
+# 24. lint: dangling, self and non-string parent
+cat >"$REG" <<'EOF'
+{"id": "p", "status": "planned", "todo": "tasks/p-todo.md"}
+{"id": "c", "status": "planned", "parent": "ghost", "todo": "tasks/c-todo.md"}
+{"id": "n", "status": "planned", "parent": "n", "todo": "tasks/n-todo.md"}
+{"id": "a", "status": "planned", "parent": 5, "todo": "tasks/a-todo.md"}
+EOF
+set +e
+lint_out="$(bash "$SCRIPT" lint 2>&1)"
+lint_rc=$?
+set -e
+[ "$lint_rc" -eq 1 ] || { echo "FAIL: lint should reject bad parent (rc=$lint_rc)"; fail=1; }
+assert_match "FAIL: line 2: parent 'ghost' is not an existing task id" "$lint_out"
+assert_match "FAIL: line 3: parent 'n' is the row itself" "$lint_out"
+assert_match "FAIL: line 4: invalid row (parent must be str or null" "$lint_out"
+
 if [ "$fail" -ne 0 ]; then
   echo "---"
   echo "Registry contents:"
