@@ -1,6 +1,6 @@
 export const meta = {
   name: 'audit-category',
-  description: 'Scan one audit category with parallel sonnet scanners, adversarially verify critical/high findings',
+  description: 'Scan one audit category with parallel sonnet scanners, adversarially verify critical/high findings with opus',
   phases: [{ title: 'Scan' }, { title: 'Verify' }],
 }
 
@@ -55,7 +55,7 @@ phase('Verify')
 const out = await parallel(findings.map((f, i) => async () => {
   if (f.severity !== 'critical' && f.severity !== 'high') return Object.assign({}, f, { verified: false })
   const p = 'あなたは監査 finding の反証チェッカー。このリポジトリを read-only で調べ、次の finding が本当に成立するかを、根拠ファイルを実際に開いて検証せよ。誤り・誇張・既に対策済み・引用行に根拠が無い、のいずれかなら refuted=true とし reason に理由を書く。成立するなら refuted=false。severity が過大/過小なら adjusted_severity で訂正(妥当なら unchanged)。finding: ' + JSON.stringify(f)
-  const vopts = { label: 'verify-' + i, phase: 'Verify', schema: VERDICT, model: 'sonnet', effort: 'medium' }
+  const vopts = { label: 'verify-' + i, phase: 'Verify', schema: VERDICT, model: 'opus', effort: 'medium' }
   let v = await agent(p, vopts)
   if (!v) v = await agent(p, Object.assign({}, vopts, { label: 'verify-' + i + '-retry' }))
   if (!v) return Object.assign({}, f, { verified: false, verify_note: 'verifier unavailable (null after retry)' })

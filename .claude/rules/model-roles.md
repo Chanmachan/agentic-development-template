@@ -1,6 +1,6 @@
 # Model Roles
 
-Orchestrator–Worker 体制の役割分担。実際のモデル割当はセッション/プロジェクト側で決める (reviewer 系 subagent の `model: inherit` 方針と整合)。
+Orchestrator–Worker 体制の役割分担。実際の割当は下の「subagent のモデル既定」を正とし、セッション/プロジェクト側で上書き可。
 
 ## 役割表
 
@@ -15,19 +15,22 @@ Orchestrator–Worker 体制の役割分担。実際のモデル割当はセッ�
 
 ## モデル割当の例 (参考)
 
-プロジェクト/セッションで上書き可。subagent frontmatter の `model: inherit` は親セッションに委ねる (reviewer 系は b4ee030 方針)。
+プロジェクト/セッションで上書き可。サブエージェントの既定は下の「subagent のモデル既定」を参照。
 
 | 役割 | 例 |
 |---|---|
 | orchestrator | 上位推論モデル (計画・レビュー統合) |
-| 実装 worker | IDE 実装モデル (例: Cursor Composer) |
+| 実装 worker | IDE 実装モデル (例: Cursor Composer)。orchestrator の判断で Claude (opus) |
 | 反証レビュアー | 別ベンダーのレビュー用モデル |
 | 列挙役 | haiku (`enumerator` agent — 役割に内在する pin) |
 
-## subagent のモデル既定 (例)
+## subagent のモデル既定
 
-- review 観点別: correctness / security は深い推論向け、tests / performance / readability / docs-adr はチェックリスト駆動向け
-- `code-reviewer` (単観点 quick) / `investigator` = inherit / `enumerator` = haiku / `planner` = inherit
+- 観点別 reviewer の `tests` / `performance` / `readability` / `docs-adr`、および `code-reviewer` / `investigator`: **opus** 既定
+- `correctness` / `security`: **fable** のまま (判断が重いため上位推論を維持)
+- `planner`: **inherit** (親セッションのモデルを引き継ぐ。着手前 plan review では呼び出し側が上位モデルを明示指定する)
+- `enumerator`: **haiku** (判断しない機械列挙のみ)
+- repo-audit: 走査 (Scan) は **sonnet** (並列数が多い)、critical/high の反証 (Verify) は **opus** (件数が少なく判断が重い)
 - 統合・レビュー統合・優先順位付け = orchestrator 自身が直接行う (subagent に委譲しない)
 
 ## レーンの実装規律

@@ -36,7 +36,7 @@ def main():
     lines.append(f"- 生成: {now} (ultracode audit)")
     lines.append(f"- findings: {len(active)} 件 ({count_str or 'なし'})、反証チェックで棄却: {len(refuted)} 件")
     lines.append(f"- 走査エージェント欠落: {', '.join(failed) if failed else 'なし (全走査完了)'}")
-    lines.append("- verified=true は critical/high に対する sonnet 反証チェック通過を意味する。medium 以下は設計上 verified=false のまま。")
+    lines.append("- verified=true は critical/high に対する opus 反証チェック通過を意味する。medium 以下は設計上 verified=false のまま。")
     lines.append("")
 
     for i, f in enumerate(active, 1):
