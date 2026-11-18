@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-06-02
-- Last-validated: 2026-07-06
+- Last-validated: 2026-11-18
 
 ## Context
 
@@ -101,6 +101,12 @@ reviewer 本文に project-specific な path / ID を直書きしない。`docs-
 - `dependencies` / `api-contract` / `a11y` reviewer の追加 (現状 6 観点で安定運用してから検討)
 - reviewer 出力を JSON 化して機械的に集約 / dedupe (現状は markdown と coordinator による緩い dedupe)
 - reviewer の auto-routing (PR 内容から必要な reviewer を自動選択)
+
+## Addendum (2026-11): 観点別レビュアーのモデル
+
+6 観点 reviewer のうち `tests` / `performance` / `readability` / `docs-adr` は frontmatter で `model: opus`(従来は `sonnet`) とし、チェックリスト駆動でも網羅・優先付けに推論余力を確保する。`correctness` / `security` は判断が重いため従来どおり `model: fable` を維持する。単観点 quick 用の `code-reviewer` も `opus`(従来は `sonnet`) に揃え、multi-review 未使用時の深さを観点別レビューと同等に近づける。
+
+サブエージェント全体の割当 (`investigator`、repo-audit の走査 / 反証を含む) の正は `.claude/rules/model-roles.md` の「subagent のモデル既定」。
 
 ## References
 

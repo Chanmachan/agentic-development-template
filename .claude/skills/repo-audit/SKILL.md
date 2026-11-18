@@ -61,7 +61,7 @@ last-heartbeat: <ISO時刻>
 ```
 
 - 走査は sonnet。機械的な列挙 (対応表・一覧作成) だけは haiku の enumerator agent に分離してよい (Lessons #1 に従い、fan-out に流す前に必ずスポットチェックする)。
-- workflow は Scan → Verify の2フェーズ: Verify では severity が critical/high の finding だけを sonnet で反証する (medium 以下は `verified:false` のまま載せてよい)。
+- workflow は Scan → Verify の2フェーズ: Verify では severity が critical/high の finding だけを opus で反証する (medium 以下は `verified:false` のまま載せてよい)。
 
 ### 4. markdown 化する
 
@@ -87,7 +87,7 @@ python3 .claude/skills/repo-audit/assets/render_audit.py <workflow-output.json> 
 |------|--------|------|
 | 走査エージェント | sonnet | 各カテゴリの本体調査 |
 | 機械的な列挙 (対応表・一覧作成) | haiku | enumerator agent。判断させず表だけ作らせる |
-| 反証チェック | sonnet | 対象は severity が critical/high の finding のみ。medium 以下は `verified:false` のまま可 |
+| 反証チェック | opus | 対象は severity が critical/high の finding のみ。medium 以下は `verified:false` のまま可 |
 | 統合・優先順位付け | メインの PM 本人 | 委譲しない。統合用エージェントは立てない |
 
 観点9 (モデル頑健性) のみ例外: エージェントに委譲せず、メインのモデル自身が調査・執筆する (ハーネス自体の穴を見つける観点なので、モデルの推論力の差がそのまま結果の質に出る)。
@@ -135,5 +135,5 @@ rubric が scanner 間で不統一だと severity がぶれ、メインループ
 
 ## assets/ の説明
 
-- **`audit-category.workflow.js`**: 1カテゴリ分の走査ハーネス。Scan フェーズで `args.scanners` を sonnet エージェントに並列 fan-out (null 返却時は同じプロンプトで1回だけリトライ)、Verify フェーズで severity が critical/high の finding だけを sonnet で反証する。`args` は文字列で届く場合があるため `typeof args === 'string' ? JSON.parse(args) : args` でガードしている (編集不要、参照のみ)。
+- **`audit-category.workflow.js`**: 1カテゴリ分の走査ハーネス。Scan フェーズで `args.scanners` を sonnet エージェントに並列 fan-out (null 返却時は同じプロンプトで1回だけリトライ)、Verify フェーズで severity が critical/high の finding だけを opus で反証する。`args` は文字列で届く場合があるため `typeof args === 'string' ? JSON.parse(args) : args` でガードしている (編集不要、参照のみ)。
 - **`render_audit.py`**: workflow の出力 JSON を所定の markdown 形式に変換する。usage: `python3 render_audit.py <workflow-output.json> <cat番号> <タイトル> <出力.md>`。severity 順にソートし、反証で棄却された finding は末尾に別枠でまとめる (編集不要、参照のみ)。
