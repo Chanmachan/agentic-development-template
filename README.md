@@ -46,7 +46,7 @@ Adding this harness to an **existing** repository instead (shared with the team,
 
 ```bash
 # Click "Use this template" on GitHub, or:
-git clone https://github.com/Chanmachan/template-repo.git your-project
+git clone https://github.com/Chanmachan/agentic-development-template.git your-project
 cd your-project
 ```
 
@@ -93,6 +93,8 @@ claude   # Claude Code
 codex    # Codex
 ```
 
+Codex runs commands from this repo's `.codex/hooks.json` and its MCP settings only when the project's `.codex/` is **trusted** — a persistent decision, so review `.codex/hooks.json` and everything under `.codex/hooks/` before trusting. From **0.150.0** onward, untrusted projects also skip project `AGENTS.md`. From **0.169.0** onward, `codex exec` disables project config and MCP in untrusted directories; `codex exec --trust` saves project trust, but whether per-hook confirmation (`/hooks`) is still required afterward is unclear — verify hooks actually fire after trusting.
+
 ---
 
 ## Repository Structure
@@ -133,11 +135,10 @@ codex    # Codex
 │   ├── hooks.json         # Codex hook settings
 │   ├── agents/            # Codex subagent TOML files
 │   │                      # Includes review-*.toml perspective reviewers
-│   ├── rules/             # Symlinks to .claude/rules/*.md (git.md, tasks.md — see ADR 0008)
 │   └── hooks/             # Codex hook scripts mirroring .claude/hooks (parity enforced by tests/harness-parity.test.sh)
 │
 ├── .agents/
-│   └── skills/            # Codex skills (spec-interview, plan-mode, tdd, code-review, fix-review, handoff, multi-review)
+│   └── skills/            # Codex skills (spec-interview, plan-mode, tdd, code-review, fix-review, handoff, land-task, multi-review, review-cycle, verify-guide)
 │
 ├── .cursor/               # Cursor implementer harness (Composer/Agent mode; see ADR 0006)
 │   ├── hooks.json         # Cursor hook settings
@@ -218,8 +219,10 @@ Hooks are gated by `HOOK_PROFILE` (default `standard`). Set it per session to di
 | Profile | Active hooks | Use when |
 |---------|--------------|----------|
 | `minimal` | post-lint | Prototyping, demos, external repos |
-| `standard` (default) | post-lint, protect-config, stop-check, suggest-compact | Day-to-day development |
+| `standard` (default) | post-lint, protect-config, stop-check, suggest-compact, git-guard | Day-to-day development |
 | `strict` | all of standard (+ future hooks) | Pre-release, hardening branches |
+
+`worktree-setup` runs on all profiles (ADR 0009), independent of `HOOK_PROFILE`. On Codex, `suggest-compact` runs only under the `strict` profile (ADR 0010).
 
 ```bash
 HOOK_PROFILE=minimal claude     # loosen Claude Code
@@ -229,7 +232,7 @@ HOOK_PROFILE=strict codex       # tighten Codex
 HOOK_PROFILE=strict cursor-agent --model composer-2.5  # tighten Cursor (6 hooks; see .cursor/README.md)
 ```
 
-`suggest-compact.mjs` uses transcript byte size / 4 as a rough token estimate. Override the threshold via `SUGGEST_COMPACT_THRESHOLD` (default `140000`).
+`suggest-compact.mjs` reads **real token usage** recorded in the transcript (`message.usage`, sidechains excluded). Window size is `SUGGEST_COMPACT_WINDOW` (default `1000000`); the nudge threshold is `SUGGEST_COMPACT_THRESHOLD` (default = 70% of the window).
 
 ---
 
@@ -299,7 +302,7 @@ See ADR 0004 for the design rationale.
 
 `tasks/` is **git-ignored local working state** (like `tmp/` and `log/`), not shipped to teammates — share via the PR body. The convention itself lives in committed docs, so it travels with every clone:
 
-- `.claude/rules/tasks.md` / `.codex/rules/tasks.md` — canonical schema and lifecycle. `.claude/rules/tasks.md` carries `paths: ["tasks/**", "scripts/sync-tasks.sh"]` frontmatter, so it loads only when Claude works with those files, not every session (`.claude/rules/git.md` stays unscoped — commit conventions are needed every session). See ADR 0009.
+- `.claude/rules/tasks.md` — canonical schema and lifecycle (Codex: see `AGENTS.md` → `.claude/rules/`). It carries `paths: ["tasks/**", "scripts/sync-tasks.sh"]` frontmatter, so it loads only when Claude works with those files, not every session (`.claude/rules/git.md` stays unscoped — commit conventions are needed every session). See ADR 0009.
 - Each task gets its own `tasks/<id>-todo.md` plan file; `tasks/tasks.jsonl` is the status registry (one line per task, upserted by `id`). There is no privileged single `todo.md`.
 
 Update a registry line safely (locked, atomic write) with the helper:

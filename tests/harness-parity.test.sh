@@ -55,44 +55,28 @@ $(diff "$a_path" "$b_path")"
 done
 
 
-# ---------------------------------------------------------------------------
-# Symlink verification (ADR 0008 (d)): .codex/rules/{git,tasks}.md are
-# relative symlinks to .claude/rules/, not copies — drift is structurally
-# impossible, but a broken/retargeted symlink (or someone replacing it with a
-# real file that then diverges) would silently defeat that guarantee. Check
-# both that the path resolves ([ -e ], which follows symlinks and fails on a
-# dangling target) and that the resolved content matches its .claude/rules/
-# counterpart byte-for-byte.
-# ---------------------------------------------------------------------------
-SYMLINK_PAIRS=(
-  ".codex/rules/git.md:.claude/rules/git.md"
-  ".codex/rules/tasks.md:.claude/rules/tasks.md"
-)
+# .codex/rules/ must not contain .md (ADR 0008 (d)); missing dir PASSes.
+CODEX_RULES_DIR="$REPO_ROOT/.codex/rules"
+CODEX_RULES_HINT="Codex .codex/rules/ is for .rules (Starlark execpolicy) only — .md is not read. Keep rules in .claude/rules/ and reference them from AGENTS.md."
 
-for pair in "${SYMLINK_PAIRS[@]}"; do
-  a="${pair%%:*}"
-  b="${pair#*:}"
-  a_path="$REPO_ROOT/$a"
-  b_path="$REPO_ROOT/$b"
-
-  if [ ! -e "$a_path" ]; then
-    bad "$a does not resolve (missing or dangling symlink)"
-    continue
-  fi
-  ok "$a resolves"
-
-  if [ ! -f "$b_path" ]; then
-    bad "$b is missing"
-    continue
-  fi
-
-  if diff -q "$a_path" "$b_path" >/dev/null 2>&1; then
-    ok "$a and $b are content-identical"
+if [ -d "$CODEX_RULES_DIR" ]; then
+  found_md=0
+  _codex_rules_find="$(mktemp)"
+  if find -L "$CODEX_RULES_DIR/" -iname '*.md' -print0 >"$_codex_rules_find"; then
+    while IFS= read -r -d '' md; do
+      found_md=1
+      bad "unexpected .md under .codex/rules/: $md — $CODEX_RULES_HINT"
+    done <"$_codex_rules_find"
+    if [ "$found_md" -eq 0 ]; then
+      ok ".codex/rules/ has no .md files"
+    fi
   else
-    bad "$a and $b have drifted — $a should stay a symlink to $b. diff:
-$(diff "$a_path" "$b_path")"
+    bad "find failed while scanning .codex/rules/ — $CODEX_RULES_HINT"
   fi
-done
+  rm -f "$_codex_rules_find"
+else
+  ok ".codex/rules/ absent (expected)"
+fi
 
 echo
 echo "----------------------------------------"

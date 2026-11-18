@@ -11,8 +11,8 @@
     - `docs/spec.md`
     - relevant ADRs in `docs/adr/`
 - Plan → approval → implement. Never start coding without a plan.
-- Implementation work goes on a feature branch (see `.claude/rules/git.md` / `.codex/rules/git.md`), never directly on `main`.
-- Track every task per `.claude/rules/tasks.md` / `.codex/rules/tasks.md`: each task has its own per-task todo file (`tasks/{id}-todo.md`) and `tasks/tasks.jsonl` is the status registry. There is no privileged single todo.md. Out-of-scope gaps: see backlog conventions in `.claude/rules/tasks.md`.
+- Implementation work goes on a feature branch (see `.claude/rules/git.md`), never directly on `main`.
+- Track every task per `.claude/rules/tasks.md`: each task has its own per-task todo file (`tasks/{id}-todo.md`) and `tasks/tasks.jsonl` is the status registry. There is no privileged single todo.md. Out-of-scope gaps: see backlog conventions in `.claude/rules/tasks.md`.
 
 ## Quality gates
 - Run lint, typecheck, and tests before finishing.
@@ -29,7 +29,7 @@
 - specs/docs: `docs/`
 - tasks: `tasks/`
 - Claude hooks/skills/subagents/rules: `.claude/`
-- Codex hooks/agents/rules: `.codex/`
+- Codex hooks/agents: `.codex/`
 - Codex skills: `.agents/skills/`
 - Cursor implementer harness: `.cursor/`
 - session contexts: `contexts/`

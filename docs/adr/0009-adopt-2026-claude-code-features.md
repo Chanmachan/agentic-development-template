@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-06
-- Last-validated: 2026-07-06
+- Last-validated: 2026-11-18
 
 ## Context
 
@@ -30,10 +30,10 @@ task-tracking schema/lifecycle is only relevant when Claude is actually touching
 `.claude/rules/git.md` is deliberately left **without** `paths` frontmatter (always loaded): commit
 conventions apply to every session that might end in a `git commit`, and rules without a matching
 in-progress file read to trigger on would otherwise silently never load when actually needed (a commit isn't
-a file read). `.codex/rules/{git,tasks}.md` are symlinks to the `.claude/` originals (ADR 0008 (d)), so the
-frontmatter travels automatically; Codex's own rule-loading behavior for `paths` is unverified (Codex has no
-equivalent documented feature as of this ADR) — worst case Codex ignores the frontmatter block as inert YAML,
-which is a safe failure mode either way.
+a file read). Codex follows `AGENTS.md`, which points at `.claude/rules/*.md` for git/task conventions
+(2026-11: removed `.codex/rules/*.md` symlinks — see ADR 0008 (d) superseded note). The `paths` frontmatter on
+`tasks.md` is Claude Code–specific; Codex has no equivalent documented feature — worst case it treats the YAML
+block as inert, which is a safe failure mode either way.
 
 ### (b) Worktree auto-sync via `SessionStart`/`SubagentStart`, **not** `WorktreeCreate` — declined as unsafe
 

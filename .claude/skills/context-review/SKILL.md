@@ -2,6 +2,7 @@
 name: context-review
 description: Load the code-review session context (read-only stance, Blocking/Suggestion/Nit checklist) mid-session.
 disable-model-invocation: true
+allowed-tools: Bash(cat ${CLAUDE_PROJECT_DIR}/contexts/review.md)
 ---
 
 Load `contexts/review.md` as this session's purpose-specific instructions, in addition to CLAUDE.md/AGENTS.md, which stay in effect.

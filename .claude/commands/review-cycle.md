@@ -1,7 +1,7 @@
 ---
 description: multi-review → fix-review を「指摘ゼロ(clean)」になるまで自動で繰り返す。人が毎回回さなくて済むようにするレビュー駆動ループ
 argument-hint: "[PR番号 | PR URL | 空=現在ブランチ vs main] [--max-rounds N(既定3)] [--base <ref>]"
-allowed-tools: Bash, Read, Grep, Glob, Edit, Write, Task
+allowed-tools: Bash, Read, Grep, Glob, Edit, Write, Agent
 ---
 
 # Review Cycle（レビュー収束ループ）

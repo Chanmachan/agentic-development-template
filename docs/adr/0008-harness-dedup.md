@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-06
-- Last-validated: 2026-07-06
+- Last-validated: 2026-11-18
 
 ## Context
 
@@ -55,6 +55,10 @@ ADR 0006 §2 と §5 は、この不一致を認識した上で「共有ライ�
     持たない (protected-path 判定のような "ロジック" ではなく "読み物" であり、共有しても単独可読性を
     損なわない) ため、symlink 化してドリフトそのものを構造的に防止する。git はシンボリックリンクを
     そのまま追跡するため、`.codex/` チェックアウトでも `cat .codex/rules/git.md` は解決できる。
+
+    **(2026-11: superseded)** Codex の `.codex/rules/` は execpolicy 用の `.rules` (Starlark) しか読まず、
+    `.md` は読まれないことが判明した。2026-11 に symlink を削除し、ルール参照は `AGENTS.md` →
+    `.claude/rules/` に一本化した (`tests/harness-parity.test.sh` が `.codex/rules/` 配下に `*.md` が無いことを検証)。
 
 (e) **明示的に見送るもの: skills の symlink 化。** `.claude/skills/` と `.agents/skills/` は
     ツールごとの言い回し・スロット (`AskUserQuestion` の有無など) を意図的に持つ。共有すべき標準は
@@ -118,7 +122,7 @@ ADR 0006 §2 と §5 は、この不一致を認識した上で「共有ライ�
 - `tests/harness-parity.test.sh` が、意図的なコピーファイルのドリフトを CI で機械的に検出する。
   ADR 0006 §2 が容認した「コピーの重複」という trade-off に、初めて自動化された安全網が付いた。
 - `.codex/rules/*.md` の symlink 化により、この2ファイルについては構造的にドリフトが発生しなくなる
-  (parity テストの対象にする必要すらない)。
+  (parity テストの対象にする必要すらない)。(2026-11: superseded — (d) の注記参照)
 - ガードの自己防衛 (f) により、このガード自身への単独の編集で write 保護全体を無効化する経路が塞がれた。
 - fail-closed 化 (g) により、共有ライブラリの欠落・破損時に「わからないので許可する」という
   最も危険な失敗モードが排除された。
