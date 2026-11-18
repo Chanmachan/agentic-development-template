@@ -93,7 +93,7 @@ claude   # Claude Code
 codex    # Codex
 ```
 
-Codex reads project settings (e.g. `.codex/hooks.json`) only when this project's `.codex/` is **trusted**. From **0.150.0** onward, untrusted projects also skip project `AGENTS.md`. From **0.169.0** onward, `codex exec` disables project config and MCP in untrusted directories; run once with `--trust` to persist trust.
+Codex runs commands from this repo's `.codex/hooks.json` and its MCP settings only when the project's `.codex/` is **trusted** — a persistent decision, so review `.codex/hooks.json` and everything under `.codex/hooks/` before trusting. From **0.150.0** onward, untrusted projects also skip project `AGENTS.md`. From **0.169.0** onward, `codex exec` disables project config and MCP in untrusted directories; `codex exec --trust` saves project trust, but whether per-hook confirmation (`/hooks`) is still required afterward is unclear — verify hooks actually fire after trusting.
 
 ---
 
@@ -222,7 +222,7 @@ Hooks are gated by `HOOK_PROFILE` (default `standard`). Set it per session to di
 | `standard` (default) | post-lint, protect-config, stop-check, suggest-compact, git-guard | Day-to-day development |
 | `strict` | all of standard (+ future hooks) | Pre-release, hardening branches |
 
-`worktree-setup` runs on all profiles (ADR 0009), independent of `HOOK_PROFILE`.
+`worktree-setup` runs on all profiles (ADR 0009), independent of `HOOK_PROFILE`. On Codex, `suggest-compact` runs only under the `strict` profile (ADR 0010).
 
 ```bash
 HOOK_PROFILE=minimal claude     # loosen Claude Code
@@ -302,7 +302,7 @@ See ADR 0004 for the design rationale.
 
 `tasks/` is **git-ignored local working state** (like `tmp/` and `log/`), not shipped to teammates — share via the PR body. The convention itself lives in committed docs, so it travels with every clone:
 
-- `.claude/rules/tasks.md` — canonical schema and lifecycle (Codex: see `AGENTS.md` → `.claude/rules/`). `.claude/rules/tasks.md` carries `paths: ["tasks/**", "scripts/sync-tasks.sh"]` frontmatter, so it loads only when Claude works with those files, not every session (`.claude/rules/git.md` stays unscoped — commit conventions are needed every session). See ADR 0009.
+- `.claude/rules/tasks.md` — canonical schema and lifecycle (Codex: see `AGENTS.md` → `.claude/rules/`). It carries `paths: ["tasks/**", "scripts/sync-tasks.sh"]` frontmatter, so it loads only when Claude works with those files, not every session (`.claude/rules/git.md` stays unscoped — commit conventions are needed every session). See ADR 0009.
 - Each task gets its own `tasks/<id>-todo.md` plan file; `tasks/tasks.jsonl` is the status registry (one line per task, upserted by `id`). There is no privileged single `todo.md`.
 
 Update a registry line safely (locked, atomic write) with the helper:

@@ -55,23 +55,25 @@ $(diff "$a_path" "$b_path")"
 done
 
 
-# ---------------------------------------------------------------------------
-# Codex .codex/rules/ must not contain .md files (ADR 0008 (d), 2026-11).
-# The directory is for Starlark execpolicy (.rules) only; rule prose lives in
-# .claude/rules/ and is referenced from AGENTS.md. Missing .codex/rules/ PASSes.
-# ---------------------------------------------------------------------------
+# .codex/rules/ must not contain .md (ADR 0008 (d)); missing dir PASSes.
 CODEX_RULES_DIR="$REPO_ROOT/.codex/rules"
-FAIL_MSG="Codex .codex/rules/ is for .rules (Starlark execpolicy) only — .md is not read. Keep rules in .claude/rules/ and reference them from AGENTS.md."
+CODEX_RULES_HINT="Codex .codex/rules/ is for .rules (Starlark execpolicy) only — .md is not read. Keep rules in .claude/rules/ and reference them from AGENTS.md."
 
 if [ -d "$CODEX_RULES_DIR" ]; then
   found_md=0
-  while IFS= read -r -d '' md; do
-    found_md=1
-    bad "unexpected .md under .codex/rules/: $md — $FAIL_MSG"
-  done < <(find "$CODEX_RULES_DIR" -name '*.md' -print0 2>/dev/null)
-  if [ "$found_md" -eq 0 ]; then
-    ok ".codex/rules/ has no .md files"
+  _codex_rules_find="$(mktemp)"
+  if find -L "$CODEX_RULES_DIR/" -iname '*.md' -print0 >"$_codex_rules_find"; then
+    while IFS= read -r -d '' md; do
+      found_md=1
+      bad "unexpected .md under .codex/rules/: $md — $CODEX_RULES_HINT"
+    done <"$_codex_rules_find"
+    if [ "$found_md" -eq 0 ]; then
+      ok ".codex/rules/ has no .md files"
+    fi
+  else
+    bad "find failed while scanning .codex/rules/ — $CODEX_RULES_HINT"
   fi
+  rm -f "$_codex_rules_find"
 else
   ok ".codex/rules/ absent (expected)"
 fi
