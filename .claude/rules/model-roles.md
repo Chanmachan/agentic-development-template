@@ -15,7 +15,7 @@ Orchestrator–Worker 体制の役割分担。実際の割当は下の「subagen
 
 ## モデル割当の例 (参考)
 
-プロジェクト/セッションで上書き可。サブエージェントの既定は下の「subagent のモデル既定」を参照。
+役割ごとの割当例。サブエージェント個別の既定は次節「subagent のモデル既定」が正。
 
 | 役割 | 例 |
 |---|---|
@@ -31,6 +31,7 @@ Orchestrator–Worker 体制の役割分担。実際の割当は下の「subagen
 - `planner`: **inherit** (親セッションのモデルを引き継ぐ。着手前 plan review では呼び出し側が上位モデルを明示指定する)
 - `enumerator`: **haiku** (判断しない機械列挙のみ)
 - repo-audit: 走査 (Scan) は **sonnet** (並列数が多い)、critical/high の反証 (Verify) は **opus** (件数が少なく判断が重い)
+- `/multi-review` を `/review-cycle` などで繰り返すと、opus の観点 × 反復回数の分だけコストが積み上がる
 - 統合・レビュー統合・優先順位付け = orchestrator 自身が直接行う (subagent に委譲しない)
 
 ## レーンの実装規律

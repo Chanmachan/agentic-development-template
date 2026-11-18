@@ -12,7 +12,7 @@ argument-hint: [plan=<path>] [model=fable|sol|opus|sonnet] [apply]
 ## 引数
 
 - `plan=<path>` — レビュー対象の計画書。省略時は `tasks/tasks.jsonl` の `status` が `in_progress`/`planned` な最新行の `todo` を使う(無ければ直近更新の `tasks/*-todo.md`)。
-- `model=<fable|sol|opus|sonnet>` — 補正フェーズのモデル。**既定 `fable`**。`sol` は Codex `gpt-6.1-sol`(クロスベンダー)。
+- `model=<fable|sol|opus|sonnet>` — 補正フェーズのモデル。**既定 `fable`**。`sol` は Codex(クロスベンダー)。モデルは Codex の既定を使う(特定のモデルを使うときは `-m <slug>`、候補は `codex debug models`)。
 - `apply` — 付けると補正結果を計画書へ直接追記する。無ければ差分提案のみ(既定・安全側)。承認ゲート下では既定のまま提案に留め、ユーザー承認後に反映する。
 
 `$ARGUMENTS` を上記に従って解釈する。plan が特定できなければユーザーに確認する。
@@ -38,7 +38,7 @@ argument-hint: [plan=<path>] [model=fable|sol|opus|sonnet] [apply]
 
 モデル分岐:
 - **fable / opus / sonnet**(既定 fable): `Agent(subagent_type:'planner' または 'general-purpose', model:'<model>')`。planner は read-only なので `apply` する場合は general-purpose。
-- **sol**(Codex): `codex exec -m gpt-6.1-sol -s read-only`(提案) / `-s workspace-write`(`apply` 時)。ブリーフと Haiku 出力を stdin で渡す。
+- **sol**(Codex): `codex exec -s read-only`(提案) / `codex exec -s workspace-write`(`apply` 時)。ブリーフと Haiku 出力を stdin で渡す。
 
 プロンプト骨子:
 
