@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-06-08
-- Last-validated: 2026-07-06
+- Last-validated: 2026-11-18
 
 ## Context
 
@@ -23,7 +23,7 @@ Claude Code のサポートを維持したまま、Codex 互換レイヤーを�
 - Codex hooks は `.codex/hooks/` に置き、`.codex/hooks.json` で配線する。
 - Codex agents は `.codex/agents/*.toml` に置く。専門 review agents は `.codex/agents/review-*.toml` として同じ階層に置く。
 - Codex command 相当の workflow は `.agents/skills/` に置く (`fix-review`, `handoff`, `multi-review`, `review-cycle`)。
-- Codex-local reusable rules は `.codex/rules/` に置く。
+- 共有ルール文書は `.claude/rules/*.md` に置き、Codex は `AGENTS.md` から参照する。`.codex/rules/` は Starlark の execpolicy (`.rules`) 専用で `.md` は読まれない。(2026-11: `.codex/rules/*.md` symlink は削除。理由は ADR 0008 (d) の追記)
 - `AGENTS.md` は、すべての agent が常時読むリポジトリ共通ルールの source of truth として維持する。
 - `CLAUDE.md` は Claude Code 固有の指示として維持し、Codex が安全に動くための必須ファイルにはしない。
 

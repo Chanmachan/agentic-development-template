@@ -41,6 +41,7 @@ paths:
 
 - worker の起動コマンドを同名の関数で包む (`foo() { foo --model x "$@"; }`) → 自分自身を呼び続けて fork bomb になる → 別名にするか `command foo` で本体を呼ぶ。
 - `codex exec` をバックグラウンドで起動する → stdin が開いたままだと入力待ちで止まる (CPU 0・セッションファイルが増えない) → `</dev/null` を付ける。
+- untrusted なディレクトリで `codex exec` する (0.169.0+) → project の config と MCP が無効のまま動き `.codex/` の hook 等が効かない → 初回は `codex exec --trust` で trust を保存する。
 - stop hook や pre-push でテストが走る → 別のセッションが共有資源 (ローカル DB 等) を同時に叩き、無関係な赤を自分の diff のせいだと誤診する → 共有資源を使うテストは台帳で枠を取ってから回す (`orchestration` skill)。docs だけの変更ではテストを skip する。
 
 ## 主張の裏取り

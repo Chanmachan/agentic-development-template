@@ -56,43 +56,25 @@ done
 
 
 # ---------------------------------------------------------------------------
-# Symlink verification (ADR 0008 (d)): .codex/rules/{git,tasks}.md are
-# relative symlinks to .claude/rules/, not copies — drift is structurally
-# impossible, but a broken/retargeted symlink (or someone replacing it with a
-# real file that then diverges) would silently defeat that guarantee. Check
-# both that the path resolves ([ -e ], which follows symlinks and fails on a
-# dangling target) and that the resolved content matches its .claude/rules/
-# counterpart byte-for-byte.
+# Codex .codex/rules/ must not contain .md files (ADR 0008 (d), 2026-11).
+# The directory is for Starlark execpolicy (.rules) only; rule prose lives in
+# .claude/rules/ and is referenced from AGENTS.md. Missing .codex/rules/ PASSes.
 # ---------------------------------------------------------------------------
-SYMLINK_PAIRS=(
-  ".codex/rules/git.md:.claude/rules/git.md"
-  ".codex/rules/tasks.md:.claude/rules/tasks.md"
-)
+CODEX_RULES_DIR="$REPO_ROOT/.codex/rules"
+FAIL_MSG="Codex .codex/rules/ is for .rules (Starlark execpolicy) only — .md is not read. Keep rules in .claude/rules/ and reference them from AGENTS.md."
 
-for pair in "${SYMLINK_PAIRS[@]}"; do
-  a="${pair%%:*}"
-  b="${pair#*:}"
-  a_path="$REPO_ROOT/$a"
-  b_path="$REPO_ROOT/$b"
-
-  if [ ! -e "$a_path" ]; then
-    bad "$a does not resolve (missing or dangling symlink)"
-    continue
+if [ -d "$CODEX_RULES_DIR" ]; then
+  found_md=0
+  while IFS= read -r -d '' md; do
+    found_md=1
+    bad "unexpected .md under .codex/rules/: $md — $FAIL_MSG"
+  done < <(find "$CODEX_RULES_DIR" -name '*.md' -print0 2>/dev/null)
+  if [ "$found_md" -eq 0 ]; then
+    ok ".codex/rules/ has no .md files"
   fi
-  ok "$a resolves"
-
-  if [ ! -f "$b_path" ]; then
-    bad "$b is missing"
-    continue
-  fi
-
-  if diff -q "$a_path" "$b_path" >/dev/null 2>&1; then
-    ok "$a and $b are content-identical"
-  else
-    bad "$a and $b have drifted — $a should stay a symlink to $b. diff:
-$(diff "$a_path" "$b_path")"
-  fi
-done
+else
+  ok ".codex/rules/ absent (expected)"
+fi
 
 echo
 echo "----------------------------------------"
